@@ -29,6 +29,7 @@ Vue 3 (Composition API, `<script setup>`), Vite, TypeScript, vue-router, Pinia, 
   ошибки: `email_taken`, `validation` (с полями).
 - `POST /staff/auth/password/forgot` `{email}` → `202 {retryAfterSec, ttlMin}` — всегда одинаковый ответ, не раскрывает, есть ли такая почта.
 - `POST /staff/auth/password/reset` `{token, password}` → `204`; ошибки: `invalid_token` (истёк или использован), `validation`.
+- `POST /staff/auth/refresh` → `{accessToken, user}` по refresh-куке (восстановление сессии после перезагрузки страницы); без куки — `unauthorized`.
 - `POST /staff/auth/logout`.
 
 ## Решения и допущения

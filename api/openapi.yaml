@@ -14,6 +14,7 @@ tags:
   - name: auth
   - name: onboarding
   - name: requests
+  - name: staff-auth
 paths:
   /auth/code/request:
     post:
@@ -287,6 +288,131 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/MessageAttachment' }
+  /staff/auth/login:
+    post:
+      tags: [staff-auth]
+      summary: Вход сотрудника УК
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffLogin' }
+      responses:
+        '200':
+          description: Вход выполнен. Refresh-токен приходит в HttpOnly-куке; срок куки зависит от remember
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffSession' }
+        '401':
+          description: invalid_credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: pending_approval (в fields — company, adminEmail), rejected или blocked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: rate_limited; в теле — через сколько секунд повторить
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /staff/auth/register:
+    post:
+      tags: [staff-auth]
+      summary: Заявка сотрудника на доступ; подтверждает администратор УК
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffRegister' }
+      responses:
+        '202':
+          description: Заявка принята
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffRegisterResult' }
+        '409':
+          description: email_taken
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: validation; в fields — сообщения по полям
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /staff/auth/refresh:
+    post:
+      tags: [staff-auth]
+      summary: Восстановить сессию по refresh-куке (после перезагрузки страницы)
+      security: []
+      responses:
+        '200':
+          description: Сессия восстановлена
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffSession' }
+        '401':
+          description: unauthorized — куки нет или она недействительна
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /staff/auth/logout:
+    post:
+      tags: [staff-auth]
+      summary: Выход сотрудника; сбрасывает refresh-куку
+      responses:
+        '204':
+          description: Сессия закрыта
+  /staff/auth/password/forgot:
+    post:
+      tags: [staff-auth]
+      summary: Отправить ссылку для восстановления пароля
+      description: Ответ одинаков для известной и неизвестной почты.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffForgot' }
+      responses:
+        '202':
+          description: Запрос принят
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StaffForgotResult' }
+        '429':
+          description: rate_limited
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /staff/auth/password/reset:
+    post:
+      tags: [staff-auth]
+      summary: Задать новый пароль по ссылке из письма
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StaffReset' }
+      responses:
+        '204':
+          description: Пароль изменён
+        '410':
+          description: invalid_token — ссылка истекла, использована или повреждена
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: validation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -486,6 +612,58 @@ components:
         id: { type: string }
         at: { type: string, format: date-time }
         text: { type: string }
+    StaffLogin:
+      type: object
+      required: [email, password, remember]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+        remember: { type: boolean }
+    StaffSession:
+      type: object
+      required: [accessToken, user]
+      properties:
+        accessToken: { type: string }
+        user:
+          type: object
+          required: [id, name, role]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            role: { type: string, enum: [dispatcher, employee, admin] }
+    StaffRegister:
+      type: object
+      required: [name, company, email, phone, password, consent]
+      properties:
+        name: { type: string }
+        company: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string, description: Телефон в формате +7XXXXXXXXXX }
+        password: { type: string, minLength: 8 }
+        consent: { type: boolean }
+    StaffRegisterResult:
+      type: object
+      required: [company, adminEmail]
+      properties:
+        company: { type: string }
+        adminEmail: { type: string, format: email }
+    StaffForgot:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+    StaffForgotResult:
+      type: object
+      required: [retryAfterSec, ttlMin]
+      properties:
+        retryAfterSec: { type: integer, minimum: 0 }
+        ttlMin: { type: integer, minimum: 1 }
+    StaffReset:
+      type: object
+      required: [token, password]
+      properties:
+        token: { type: string }
+        password: { type: string, minLength: 8 }
     Error:
       type: object
       required: [code]
