@@ -74,6 +74,7 @@ export function TextField({
           {...input}
           testID={testID}
           accessibilityLabel={label}
+          maxFontSizeMultiplier={1.3}
           value={value}
           maxLength={maxLength}
           multiline={multiline}

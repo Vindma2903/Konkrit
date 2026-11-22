@@ -89,7 +89,7 @@ describe('LoginScreen: крайние случаи', () => {
     await waitFor(() =>
       expect(router.push).toHaveBeenCalledWith({
         pathname: '/code',
-        params: { channel: 'phone', value: '+79991234567', retryAfter: '120' },
+        params: { retryAfter: '120' },
       }),
     );
   });

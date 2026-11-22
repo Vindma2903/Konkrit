@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { ApiError, setApi, type ApiClient } from '@/api';
 import { MOCK_CODE, createMockApi } from '@/api/mockApi';
+import { formatPhone } from '@/lib/phone';
 import { renderWithProviders } from '@/test/utils';
 
 import { CodeScreen } from '../CodeScreen';
@@ -22,6 +23,15 @@ jest.mock('expo-secure-store', () => ({
 
 const params = jest.mocked(useLocalSearchParams);
 
+function openCode(channel: 'phone' | 'email', value: string, retryAfter?: string) {
+  const draft = useLoginDraft.getState();
+  draft.reset();
+  draft.setChannel(channel);
+  if (channel === 'phone') draft.setPhone(formatPhone(value));
+  else draft.setEmail(value);
+  params.mockReturnValue(retryAfter ? { retryAfter } : {});
+}
+
 function fakeApi(overrides: Partial<ApiClient> = {}): ApiClient {
   return { ...createMockApi({ delayMs: 0 }), ...overrides };
 }
@@ -35,9 +45,8 @@ async function enterCode(code: string) {
 describe('CodeScreen', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
-    useLoginDraft.getState().reset();
     await useSessionStore.getState().signOut();
-    params.mockReturnValue({ channel: 'phone', value: '+79991234567' });
+    openCode('phone', '+79991234567', '60');
   });
 
   afterEach(() => {
@@ -56,7 +65,7 @@ describe('CodeScreen', () => {
   });
 
   it('письмо: заголовок, адрес и ссылки по каналу почты', async () => {
-    params.mockReturnValue({ channel: 'email', value: 'resident@example.ru' });
+    openCode('email', 'resident@example.ru');
     setApi(fakeApi());
     await renderWithProviders(<CodeScreen />);
     expect(screen.getByText('Код из письма', { exact: true })).toBeOnTheScreen();

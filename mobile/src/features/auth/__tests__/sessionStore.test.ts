@@ -59,6 +59,8 @@ describe('sessionStore', () => {
     await useSessionStore.getState().signIn(session);
     await useSessionStore.getState().signOut();
     expect(useSessionStore.getState().tokens).toBeNull();
-    expect(await SecureStore.getItemAsync('konkrit.session')).toBeNull();
+    expect(await SecureStore.getItemAsync('konkrit.access')).toBeNull();
+    expect(await SecureStore.getItemAsync('konkrit.refresh')).toBeNull();
+    expect(await SecureStore.getItemAsync('konkrit.profile')).toBeNull();
   });
 });

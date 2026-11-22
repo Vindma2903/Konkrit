@@ -8,7 +8,12 @@ import { queryClient } from '@/lib/queryClient';
 
 import { useLoginDraft } from './loginDraftStore';
 
-const KEY = 'konkrit.session';
+/** Токены и профиль лежат в разных ключах: у iOS-хранилища лимит на размер значения (около 2 КБ). */
+const KEYS = {
+  access: 'konkrit.access',
+  refresh: 'konkrit.refresh',
+  profile: 'konkrit.profile',
+} as const;
 
 type Tokens = { accessToken: string; refreshToken: string };
 
@@ -46,8 +51,40 @@ function isPersisted(value: unknown): value is Persisted {
 }
 
 async function persist(value: Persisted | null) {
-  if (value) await SecureStore.setItemAsync(KEY, JSON.stringify(value));
-  else await SecureStore.deleteItemAsync(KEY);
+  if (value) {
+    await Promise.all([
+      SecureStore.setItemAsync(KEYS.access, value.tokens.accessToken),
+      SecureStore.setItemAsync(KEYS.refresh, value.tokens.refreshToken),
+      SecureStore.setItemAsync(
+        KEYS.profile,
+        JSON.stringify({ user: value.user, hasResidency: value.hasResidency }),
+      ),
+    ]);
+  } else {
+    await clearStored();
+  }
+}
+
+async function clearStored() {
+  await Promise.all(Object.values(KEYS).map((key) => SecureStore.deleteItemAsync(key)));
+}
+
+/** Читает сессию из трёх ключей; null, если её нет или запись повреждена. */
+async function readStored(): Promise<Persisted | null> {
+  const [accessToken, refreshToken, profile] = await Promise.all([
+    SecureStore.getItemAsync(KEYS.access),
+    SecureStore.getItemAsync(KEYS.refresh),
+    SecureStore.getItemAsync(KEYS.profile),
+  ]);
+  if (accessToken === null && refreshToken === null && profile === null) return null;
+  const saved: unknown = {
+    tokens: { accessToken, refreshToken },
+    ...(profile ? (JSON.parse(profile) as object) : {}),
+  };
+  if (isPersisted(saved)) return saved;
+  // Неполная или повреждённая запись не считается входом и стирается.
+  await clearStored();
+  return null;
 }
 
 /**
@@ -79,18 +116,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   async hydrate() {
     try {
-      const raw = await SecureStore.getItemAsync(KEY);
-      if (raw) {
-        const saved: unknown = JSON.parse(raw);
-        if (isPersisted(saved)) {
-          set({ tokens: saved.tokens, user: saved.user, hasResidency: saved.hasResidency });
-        } else {
-          await SecureStore.deleteItemAsync(KEY);
-        }
+      const saved = await readStored();
+      if (saved) {
+        set({ tokens: saved.tokens, user: saved.user, hasResidency: saved.hasResidency });
       }
     } catch {
       // Повреждённое хранилище: начинаем без сессии.
-      await SecureStore.deleteItemAsync(KEY).catch(() => undefined);
+      await clearStored().catch(() => undefined);
     } finally {
       set({ hydrated: true });
     }

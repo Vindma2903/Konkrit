@@ -77,7 +77,7 @@ export function OtpInput({
   }
 
   return (
-    <View accessibilityRole="none" accessibilityLabel={accessibilityLabel} style={styles.row}>
+    <View style={styles.row}>
       {Array.from({ length }, (_, index) => {
         const filled = Boolean(value[index]);
         const active = index === Math.min(value.length, length - 1);
@@ -88,7 +88,8 @@ export function OtpInput({
                 refs.current[index] = node;
               }}
               testID={`otp-cell-${index}`}
-              accessibilityLabel={`Цифра ${index + 1} из ${length}`}
+              accessibilityLabel={`${accessibilityLabel}: цифра ${index + 1} из ${length}`}
+              maxFontSizeMultiplier={1.3}
               value={value[index] ?? ''}
               onChangeText={(text) => handleChange(index, text)}
               onKeyPress={(event) => handleKeyPress(index, event)}

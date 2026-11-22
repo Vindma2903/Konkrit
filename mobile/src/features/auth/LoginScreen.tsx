@@ -27,11 +27,7 @@ export function LoginScreen() {
     onSuccess: (result, input) =>
       router.push({
         pathname: '/code',
-        params: {
-          channel: input.channel,
-          value: input.value,
-          retryAfter: String(result.retryAfterSec),
-        },
+        params: { retryAfter: String(result.retryAfterSec) },
       }),
   });
   const runOnce = useSingleFlight();

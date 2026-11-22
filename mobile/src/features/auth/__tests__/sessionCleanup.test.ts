@@ -53,29 +53,32 @@ describe('сессия: чужие данные и повреждённое хр
   });
 
   it('запись без токенов в хранилище не считается входом', async () => {
-    await SecureStore.setItemAsync('konkrit.session', JSON.stringify({ user: { id: 'u' } }));
+    await SecureStore.setItemAsync(
+      'konkrit.profile',
+      JSON.stringify({ user: { id: 'u' }, hasResidency: true }),
+    );
     await useSessionStore.getState().hydrate();
     const state = useSessionStore.getState();
     expect(state.hydrated).toBe(true);
     expect(state.tokens).toBeNull();
-    expect(await SecureStore.getItemAsync('konkrit.session')).toBeNull();
+    expect(await SecureStore.getItemAsync('konkrit.profile')).toBeNull();
   });
 
   it('запись с пустым токеном тоже отбрасывается', async () => {
+    await SecureStore.setItemAsync('konkrit.access', '');
+    await SecureStore.setItemAsync('konkrit.refresh', 'r');
     await SecureStore.setItemAsync(
-      'konkrit.session',
-      JSON.stringify({
-        tokens: { accessToken: '', refreshToken: 'r' },
-        user: { id: 'u' },
-        hasResidency: false,
-      }),
+      'konkrit.profile',
+      JSON.stringify({ user: { id: 'u' }, hasResidency: false }),
     );
     await useSessionStore.getState().hydrate();
     expect(useSessionStore.getState().tokens).toBeNull();
   });
 
   it('неразборный JSON не ломает запуск', async () => {
-    await SecureStore.setItemAsync('konkrit.session', '{не json');
+    await SecureStore.setItemAsync('konkrit.access', 'a');
+    await SecureStore.setItemAsync('konkrit.refresh', 'r');
+    await SecureStore.setItemAsync('konkrit.profile', '{не json');
     await useSessionStore.getState().hydrate();
     expect(useSessionStore.getState().hydrated).toBe(true);
     expect(useSessionStore.getState().tokens).toBeNull();
@@ -85,5 +88,15 @@ describe('сессия: чужие данные и повреждённое хр
     jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(new Error('storage full'));
     await useSessionStore.getState().signIn(session);
     expect(useSessionStore.getState().tokens?.accessToken).toBe('a');
+  });
+
+  it('токены и профиль лежат в разных ключах, а токен хранится как есть', async () => {
+    await useSessionStore.getState().signIn(session);
+    expect(await SecureStore.getItemAsync('konkrit.access')).toBe('a');
+    expect(await SecureStore.getItemAsync('konkrit.refresh')).toBe('r');
+    expect(JSON.parse((await SecureStore.getItemAsync('konkrit.profile')) ?? '')).toEqual({
+      user: { id: 'user-1' },
+      hasResidency: true,
+    });
   });
 });

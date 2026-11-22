@@ -1,10 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ApiError, getApi, type Channel } from '@/api';
-import { formatPhone } from '@/lib/phone';
+import { formatPhone, toE164 } from '@/lib/phone';
 import { useSingleFlight } from '@/lib/useSingleFlight';
 import { colors, sizes } from '@/theme';
 import { Button, FieldError, Icon, OtpInput, Screen, ScreenHeader, Text } from '@/ui';
@@ -13,6 +13,7 @@ import { isInvalidCode, sendCodeErrorText, verifyCodeErrorText } from './errors'
 import { useLoginDraft } from './loginDraftStore';
 import { useSessionStore } from './sessionStore';
 import { useCountdown } from './useCountdown';
+import { isValidEmail, isValidPhone } from './validation';
 
 const CODE_LENGTH = 6;
 const DEFAULT_RESEND_SEC = 60;
@@ -38,11 +39,31 @@ const copy = {
   },
 };
 
-/** Ввод кода из SMS или из письма. Параметры маршрута: channel, value, retryAfter (секунды до повторной отправки). */
+type Target = { channel: Channel; valid: boolean; value: string; shown: string };
+
+/** Куда ушёл код: снимок введённого на экране входа. */
+function readTarget(): Target {
+  const { channel, phone, email } = useLoginDraft.getState();
+  return channel === 'phone'
+    ? { channel, valid: isValidPhone(phone), value: toE164(phone), shown: formatPhone(phone) }
+    : {
+        channel,
+        valid: isValidEmail(email),
+        value: email.trim().toLowerCase(),
+        shown: email.trim(),
+      };
+}
+
+/**
+ * Ввод кода из SMS или из письма. Телефон и почту берём из хранилища, а не из параметров
+ * маршрута, чтобы они не попадали в журналы навигации. Параметр маршрута: retryAfter
+ * (секунды до повторной отправки).
+ */
 export function CodeScreen() {
-  const params = useLocalSearchParams<{ channel?: string; value?: string; retryAfter?: string }>();
-  const channel: Channel = params.channel === 'email' ? 'email' : 'phone';
-  const value = params.value ?? '';
+  const params = useLocalSearchParams<{ retryAfter?: string }>();
+  // Снимок на момент открытия: смена способа на экране входа не меняет открытый экран кода.
+  const [target] = useState(readTarget);
+  const { channel, value } = target;
   const retryAfter = Number(params.retryAfter) > 0 ? Number(params.retryAfter) : DEFAULT_RESEND_SEC;
   const text = copy[channel];
 
@@ -93,7 +114,10 @@ export function CodeScreen() {
     void runOnce(() => verify.mutateAsync(entered));
   }
 
-  const shownValue = channel === 'phone' ? formatPhone(value) : value;
+  // Открыли экран кода без введённого номера или почты (например, по ссылке): возвращаем ко входу.
+  if (!target.valid) return <Redirect href="/login" />;
+
+  const shownValue = target.shown;
   const error = verify.isError
     ? verifyCodeErrorText(verify.error)
     : resend.isError

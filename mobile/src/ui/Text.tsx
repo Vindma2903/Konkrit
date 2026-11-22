@@ -20,6 +20,8 @@ export function Text({
 }: TextProps) {
   return (
     <RNText
+      // Системный шрифт растёт не больше чем на 30%: фиксированные высоты полей и кнопок не ломаются.
+      maxFontSizeMultiplier={1.3}
       {...rest}
       style={[{ fontFamily: fontFamily[weight], fontSize: size, color, lineHeight }, style]}
     />
