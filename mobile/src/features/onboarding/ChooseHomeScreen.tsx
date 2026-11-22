@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
@@ -23,6 +23,8 @@ export function ChooseHomeScreen() {
   const houses = useQuery({
     queryKey: ['houses', debounced],
     queryFn: () => getApi().searchHouses({ query: debounced }),
+    // Пока идёт новый поиск, прежний список не пропадает.
+    placeholderData: keepPreviousData,
   });
 
   function goBack() {
@@ -40,7 +42,7 @@ export function ChooseHomeScreen() {
       footer={
         <Button
           title="Продолжить"
-          disabled={!house}
+          disabled={!house || !list.some((item) => item.id === house.id)}
           onPress={() => router.push('/apartment')}
           testID="choose-home-continue"
         />

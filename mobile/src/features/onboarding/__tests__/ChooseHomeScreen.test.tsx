@@ -1,7 +1,8 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
-import { createMockApi, setApi, type ApiClient } from '@/api';
+import { setApi, type ApiClient } from '@/api';
+import { createMockApi } from '@/api/mockApi';
 import { renderWithProviders } from '@/test/utils';
 
 import { ChooseHomeScreen } from '../ChooseHomeScreen';

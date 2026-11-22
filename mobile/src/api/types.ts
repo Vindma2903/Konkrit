@@ -71,14 +71,17 @@ export interface ApiClient {
   createRequest(input: CreateRequestInput): Promise<CreateRequestResult>;
 }
 
-export type ApiErrorCode = 'invalid_code' | 'network' | 'unknown';
+export type ApiErrorCode = 'invalid_code' | 'rate_limited' | 'network' | 'unknown';
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
+  /** Через сколько секунд повторить (для rate_limited). */
+  readonly retryAfterSec?: number;
 
-  constructor(code: ApiErrorCode, message?: string) {
+  constructor(code: ApiErrorCode, message?: string, retryAfterSec?: number) {
     super(message ?? code);
     this.name = 'ApiError';
     this.code = code;
+    this.retryAfterSec = retryAfterSec;
   }
 }

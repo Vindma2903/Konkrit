@@ -1,7 +1,8 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { Redirect, router } from 'expo-router';
 
-import { createMockApi, setApi, type ApiClient, type House } from '@/api';
+import { setApi, type ApiClient, type House } from '@/api';
+import { createMockApi } from '@/api/mockApi';
 import { useSessionStore } from '@/features/auth/sessionStore';
 import { renderWithProviders } from '@/test/utils';
 
@@ -35,14 +36,15 @@ const send = () => screen.getByRole('button', { name: 'Отправить на �
 describe('ApartmentScreen', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
-    useOnboardingStore.getState().reset();
-    useOnboardingStore.getState().selectHouse(house);
+    // Выход очищает данные онбординга, поэтому дом выбираем после входа.
     await useSessionStore.getState().signOut();
     await useSessionStore.getState().signIn({
       tokens: { accessToken: 'a', refreshToken: 'r' },
       user: { id: 'user-1' },
       hasResidency: false,
     });
+    useOnboardingStore.getState().reset();
+    useOnboardingStore.getState().selectHouse(house);
   });
 
   it('без выбранного дома возвращает к выбору дома', async () => {

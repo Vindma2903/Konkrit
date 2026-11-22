@@ -1,7 +1,8 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
-import { createMockApi, setApi, type ApiClient } from '@/api';
+import { setApi, type ApiClient } from '@/api';
+import { createMockApi } from '@/api/mockApi';
 import { renderWithProviders } from '@/test/utils';
 
 import { LoginScreen } from '../LoginScreen';
@@ -48,7 +49,7 @@ describe('LoginScreen', () => {
     await waitFor(() =>
       expect(router.push).toHaveBeenCalledWith({
         pathname: '/code',
-        params: { channel: 'phone', value: '+79991234567' },
+        params: { channel: 'phone', value: '+79991234567', retryAfter: '60' },
       }),
     );
   });

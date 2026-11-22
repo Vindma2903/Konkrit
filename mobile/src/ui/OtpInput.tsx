@@ -50,18 +50,24 @@ export function OtpInput({
   }
 
   function handleChange(index: number, text: string) {
-    const digits = text.replace(/\D/g, '');
+    let digits = text.replace(/\D/g, '');
     if (digits.length === 0) {
-      // Стёрли цифру в этой ячейке.
-      commit(value.slice(0, index) + value.slice(index + 1), index);
+      // Стёрли цифру в этой ячейке; в пустой ячейке стирать нечего.
+      if (value[index]) commit(value.slice(0, index) + value.slice(index + 1), index);
       return;
     }
-    // Одна цифра заменяет текущую, несколько (вставка) заполняют подряд.
-    const next = (value.slice(0, index) + digits + value.slice(index + digits.length)).slice(
-      0,
-      length,
-    );
-    commit(next, index + digits.length);
+    // Вставили код целиком (например, из SMS): он заменяет всё, что было введено.
+    if (digits.length >= length) {
+      commit(digits.slice(0, length), length - 1);
+      return;
+    }
+    // В заполненную ячейку дописали цифру: берём новую, а не обе.
+    const current = value[index];
+    if (current && digits.length === 2) digits = digits[0] === current ? digits[1] : digits[0];
+    // Цифра ложится сразу за введёнными: пустых «дырок» в коде не бывает.
+    const at = Math.min(index, value.length);
+    const next = (value.slice(0, at) + digits + value.slice(at + digits.length)).slice(0, length);
+    commit(next, at + digits.length);
   }
 
   function handleKeyPress(index: number, event: TextInputKeyPressEvent) {

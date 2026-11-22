@@ -30,6 +30,7 @@ export function AttachButtons() {
             key={button.label}
             accessibilityRole="button"
             accessibilityLabel={button.label}
+            accessibilityState={{ disabled: true }}
             style={styles.tile}
             testID={`attach-${button.icon}`}
           >

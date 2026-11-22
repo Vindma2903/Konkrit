@@ -1,7 +1,8 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
-import { createMockApi, setApi, type ApiClient, type Residency } from '@/api';
+import { setApi, type ApiClient, type Residency } from '@/api';
+import { createMockApi } from '@/api/mockApi';
 import { renderWithProviders } from '@/test/utils';
 
 import { useRequestDraft } from '../draftStore';

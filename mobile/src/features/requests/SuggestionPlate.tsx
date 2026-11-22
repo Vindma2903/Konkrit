@@ -20,6 +20,7 @@ export function SuggestionPlate({ categoryName, onChoose }: SuggestionPlateProps
         accessibilityRole="button"
         accessibilityLabel={`Выбрать категорию «${categoryName}»`}
         onPress={onChoose}
+        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         style={styles.button}
         testID="category-suggestion-choose"
       >

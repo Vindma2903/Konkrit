@@ -1,7 +1,8 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
-import { ApiError, MOCK_CODE, createMockApi, setApi, type ApiClient } from '@/api';
+import { ApiError, setApi, type ApiClient } from '@/api';
+import { MOCK_CODE, createMockApi } from '@/api/mockApi';
 import { renderWithProviders } from '@/test/utils';
 
 import { CodeScreen } from '../CodeScreen';

@@ -22,6 +22,16 @@ describe('phone', () => {
     expect(toNational('+7 (999) 123-45-67')).toBe('9991234567');
   });
 
+  it('ведущие 8 и 7 при наборе — код страны, а не цифра номера', () => {
+    expect(toNational('8')).toBe('');
+    expect(formatPhone('8')).toBe('');
+    let value = '';
+    for (const char of '89991234567') value = formatPhone(value + char);
+    expect(value).toBe('+7 (999) 123-45-67');
+    expect(isValidPhone(value)).toBe(true);
+    expect(toE164(value)).toBe('+79991234567');
+  });
+
   it('не берёт больше 10 цифр', () => {
     expect(toNational('+7 (999) 123-45-678')).toBe('9991234567');
   });

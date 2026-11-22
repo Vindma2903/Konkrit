@@ -6,8 +6,10 @@ const NATIONAL_LENGTH = 10;
 export function toNational(text: string): string {
   let digits = text.replace(/\D/g, '');
   if (text.trim().startsWith('+7')) {
+    // Код страны из маски поля или из вставки «+7…».
     digits = digits.slice(1);
-  } else if (digits.length === NATIONAL_LENGTH + 1 && (digits[0] === '7' || digits[0] === '8')) {
+  } else if (digits[0] === '7' || digits[0] === '8') {
+    // «8 999…» и «7 999…»: мобильные номера РФ начинаются с 9, так что ведущие 7 и 8 — это код страны.
     digits = digits.slice(1);
   }
   return digits.slice(0, NATIONAL_LENGTH);

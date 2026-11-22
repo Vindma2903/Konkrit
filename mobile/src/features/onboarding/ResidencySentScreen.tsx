@@ -15,6 +15,8 @@ export function ResidencySentScreen() {
           title="На главную"
           onPress={() => {
             useOnboardingStore.getState().reset();
+            // Стек онбординга убираем, чтобы «Назад» с главной не вёл на «Ваш дом».
+            if (router.canDismiss()) router.dismissAll();
             router.replace('/home');
           }}
           testID="residency-sent-home"

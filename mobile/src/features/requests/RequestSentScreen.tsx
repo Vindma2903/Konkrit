@@ -11,7 +11,7 @@ export function RequestSentScreen() {
       footer={
         <Button
           title="На главную"
-          onPress={() => router.replace('/home')}
+          onPress={() => router.dismissTo('/home')}
           testID="request-sent-home"
         />
       }

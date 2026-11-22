@@ -5,6 +5,7 @@ import { View, type ScrollViewInstance } from 'react-native';
 
 import { getApi } from '@/api';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import { useSingleFlight } from '@/lib/useSingleFlight';
 import { colors } from '@/theme';
 import { Button, FieldError, Screen, ScreenHeader, SelectField, Text, TextField } from '@/ui';
 
@@ -15,6 +16,7 @@ import { SuggestionPlate } from './SuggestionPlate';
 
 const SUGGEST_DELAY_MS = 500;
 const NO_RESIDENCY_ERROR = 'Привяжите квартиру, чтобы отправить заявку';
+const RESIDENCY_LOAD_ERROR = 'Не удалось загрузить адрес. Проверьте соединение и попробуйте снова';
 const SEND_ERROR = 'Не удалось отправить заявку. Попробуйте снова';
 
 type FieldKey = 'category' | 'description' | 'address';
@@ -25,8 +27,7 @@ export function NewRequestScreen() {
   const [showErrors, setShowErrors] = useState(false);
   const scrollRef = useRef<ScrollViewInstance>(null);
   const fieldY = useRef<Partial<Record<FieldKey, number>>>({});
-  // Защита от двойного нажатия: состояние мутации обновляется с задержкой.
-  const inFlight = useRef(false);
+  const runOnce = useSingleFlight();
 
   const residencies = useQuery({
     queryKey: ['residencies'],
@@ -63,7 +64,11 @@ export function NewRequestScreen() {
   });
 
   const errors = validateRequest({ categoryId: category?.id ?? null, description });
-  const addressError = !residency && !residencies.isPending ? NO_RESIDENCY_ERROR : undefined;
+  const addressError = residencies.isError
+    ? RESIDENCY_LOAD_ERROR
+    : !residency && !residencies.isPending
+      ? NO_RESIDENCY_ERROR
+      : undefined;
   const hasErrors = Boolean(errors.category || errors.description || addressError);
 
   function scrollToFirstError() {
@@ -77,14 +82,15 @@ export function NewRequestScreen() {
   }
 
   function submit() {
-    if (inFlight.current) return;
+    // Пока адрес не загрузился, отправлять нечего: заявка ушла бы без привязки.
+    if (residencies.isPending) return;
     if (hasErrors) {
       setShowErrors(true);
+      if (residencies.isError) void residencies.refetch();
       scrollToFirstError();
       return;
     }
-    inFlight.current = true;
-    create.mutate(undefined, { onSettled: () => (inFlight.current = false) });
+    void runOnce(() => create.mutateAsync());
   }
 
   const empty = isFormEmpty({ categoryId: category?.id ?? null, description });
@@ -99,7 +105,7 @@ export function NewRequestScreen() {
             title="Отправить заявку"
             onPress={submit}
             disabled={empty}
-            loading={create.isPending}
+            loading={create.isPending || (residencies.isPending && !empty)}
             testID="request-submit"
           />
           <FieldError

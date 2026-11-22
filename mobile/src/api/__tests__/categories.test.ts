@@ -20,4 +20,13 @@ describe('classifyCategory', () => {
   it('не зависит от регистра', () => {
     expect(classifyCategory('ЛИФТ СЛОМАЛСЯ')?.id).toBe('elevator');
   });
+
+  it('домофон в подъезде — «Двери и домофон», а не «Уборка»', () => {
+    expect(classifyCategory('Не работает домофон в подъезде')?.id).toBe('doors');
+  });
+
+  it('проводка не путается с водой: ищется начало слова', () => {
+    expect(classifyCategory('Искрит проводка в коридоре')?.id).toBe('electricity');
+    expect(classifyCategory('Нет воды в кране')?.id).toBe('water');
+  });
 });

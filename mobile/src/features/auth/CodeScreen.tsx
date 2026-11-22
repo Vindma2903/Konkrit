@@ -1,13 +1,15 @@
 import { useMutation } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ApiError, getApi, type Channel } from '@/api';
 import { formatPhone } from '@/lib/phone';
+import { useSingleFlight } from '@/lib/useSingleFlight';
 import { colors, sizes } from '@/theme';
 import { Button, FieldError, Icon, OtpInput, Screen, ScreenHeader, Text } from '@/ui';
 
+import { isInvalidCode, sendCodeErrorText, verifyCodeErrorText } from './errors';
 import { useLoginDraft } from './loginDraftStore';
 import { useSessionStore } from './sessionStore';
 import { useCountdown } from './useCountdown';
@@ -36,25 +38,19 @@ const copy = {
   },
 };
 
-function errorText(error: unknown): string {
-  return error instanceof ApiError && error.code === 'invalid_code'
-    ? 'Неверный код. Проверьте и попробуйте ещё раз'
-    : 'Не удалось проверить код. Проверьте соединение и попробуйте снова';
-}
-
-/** Ввод кода из SMS или из письма. Параметры маршрута: channel, value. */
+/** Ввод кода из SMS или из письма. Параметры маршрута: channel, value, retryAfter (секунды до повторной отправки). */
 export function CodeScreen() {
-  const params = useLocalSearchParams<{ channel?: string; value?: string }>();
+  const params = useLocalSearchParams<{ channel?: string; value?: string; retryAfter?: string }>();
   const channel: Channel = params.channel === 'email' ? 'email' : 'phone';
   const value = params.value ?? '';
+  const retryAfter = Number(params.retryAfter) > 0 ? Number(params.retryAfter) : DEFAULT_RESEND_SEC;
   const text = copy[channel];
 
   const [code, setCode] = useState('');
-  // Защита от двойной отправки: состояние мутации обновляется с задержкой.
-  const inFlight = useRef(false);
+  const runOnce = useSingleFlight();
   // Меняется после ошибки: пересоздаёт ячейки, чтобы очистить их и вернуть фокус в первую.
   const [attempt, setAttempt] = useState(0);
-  const { seconds, restart } = useCountdown(DEFAULT_RESEND_SEC);
+  const { seconds, restart } = useCountdown(retryAfter);
   const signIn = useSessionStore((state) => state.signIn);
   const setChannel = useLoginDraft((state) => state.setChannel);
 
@@ -67,9 +63,12 @@ export function CodeScreen() {
         user: result.user,
         hasResidency: result.hasResidency,
       }),
-    onError: () => {
-      setCode('');
-      setAttempt((current) => current + 1);
+    onError: (error) => {
+      // Неверный код стираем и возвращаем фокус в первую ячейку; при сбое сети введённое остаётся.
+      if (isInvalidCode(error)) {
+        setCode('');
+        setAttempt((current) => current + 1);
+      }
     },
   });
 
@@ -81,19 +80,24 @@ export function CodeScreen() {
       setAttempt((current) => current + 1);
       restart(result.retryAfterSec || DEFAULT_RESEND_SEC);
     },
+    onError: (error) => {
+      // Сервер просит подождать: таймер показывает оставшееся время.
+      if (error instanceof ApiError && error.code === 'rate_limited' && error.retryAfterSec) {
+        restart(error.retryAfterSec);
+      }
+    },
   });
 
   function submit(entered: string) {
-    if (entered.length !== CODE_LENGTH || inFlight.current) return;
-    inFlight.current = true;
-    verify.mutate(entered, { onSettled: () => (inFlight.current = false) });
+    if (entered.length !== CODE_LENGTH) return;
+    void runOnce(() => verify.mutateAsync(entered));
   }
 
   const shownValue = channel === 'phone' ? formatPhone(value) : value;
   const error = verify.isError
-    ? errorText(verify.error)
+    ? verifyCodeErrorText(verify.error)
     : resend.isError
-      ? 'Не удалось отправить код. Проверьте соединение и попробуйте снова'
+      ? sendCodeErrorText(resend.error)
       : undefined;
 
   return (
@@ -155,7 +159,7 @@ export function CodeScreen() {
           value={code}
           onChange={setCode}
           onComplete={submit}
-          error={verify.isError}
+          error={verify.isError && isInvalidCode(verify.error)}
           autoFocus
           accessibilityLabel={text.group}
           length={CODE_LENGTH}
@@ -174,7 +178,7 @@ export function CodeScreen() {
         <Pressable
           accessibilityRole="link"
           disabled={resend.isPending}
-          onPress={() => resend.mutate()}
+          onPress={() => void runOnce(() => resend.mutateAsync())}
           style={styles.link}
           testID="code-resend"
         >

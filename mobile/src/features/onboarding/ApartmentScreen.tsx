@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { Redirect, router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { getApi } from '@/api';
+import { useSingleFlight } from '@/lib/useSingleFlight';
 import { useSessionStore } from '@/features/auth/sessionStore';
 import { colors, radius } from '@/theme';
 import {
@@ -30,7 +31,7 @@ export function ApartmentScreen() {
   const { house, apartment, account, role, verification, setField } = useOnboardingStore();
   const markResidency = useSessionStore((state) => state.markResidency);
   const [accountTouched, setAccountTouched] = useState(false);
-  const inFlight = useRef(false);
+  const runOnce = useSingleFlight();
 
   const submit = useMutation({
     mutationFn: () =>
@@ -55,9 +56,8 @@ export function ApartmentScreen() {
   const valid = apartment.length > 0 && !accountMissing;
 
   function send() {
-    if (!valid || inFlight.current) return;
-    inFlight.current = true;
-    submit.mutate(undefined, { onSettled: () => (inFlight.current = false) });
+    if (!valid) return;
+    void runOnce(() => submit.mutateAsync());
   }
 
   return (

@@ -1,14 +1,15 @@
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { getApi, type Channel } from '@/api';
 import { legalLinks } from '@/config';
 import { formatPhone, toE164 } from '@/lib/phone';
+import { useSingleFlight } from '@/lib/useSingleFlight';
 import { colors } from '@/theme';
 import { Button, LinkText, Logo, Screen, SegmentedTabs, Text, TextField } from '@/ui';
 
+import { sendCodeErrorText } from './errors';
 import { useLoginDraft } from './loginDraftStore';
 import { isValidEmail, isValidPhone } from './validation';
 
@@ -17,32 +18,37 @@ const tabs = [
   { key: 'email', label: 'Почта' },
 ] as const;
 
-const SEND_ERROR = 'Не удалось отправить код. Проверьте соединение и попробуйте снова';
-
 /** Вход: телефон / почта (один экран, два режима). */
 export function LoginScreen() {
   const { channel, phone, email, setChannel, setPhone, setEmail } = useLoginDraft();
 
   const send = useMutation({
     mutationFn: (input: { channel: Channel; value: string }) => getApi().requestCode(input),
-    onSuccess: (_result, input) =>
-      router.push({ pathname: '/code', params: { channel: input.channel, value: input.value } }),
+    onSuccess: (result, input) =>
+      router.push({
+        pathname: '/code',
+        params: {
+          channel: input.channel,
+          value: input.value,
+          retryAfter: String(result.retryAfterSec),
+        },
+      }),
   });
-
-  // Защита от двойного нажатия: состояние мутации обновляется с задержкой.
-  const inFlight = useRef(false);
+  const runOnce = useSingleFlight();
 
   const valid = channel === 'phone' ? isValidPhone(phone) : isValidEmail(email);
 
+  // Ошибку показываем у того способа, с которым она случилась.
+  const sendError =
+    send.isError && send.variables?.channel === channel ? sendCodeErrorText(send.error) : undefined;
+
   function submit() {
-    if (!valid || inFlight.current) return;
-    inFlight.current = true;
-    send.mutate(
+    if (!valid) return;
+    const input =
       channel === 'phone'
         ? { channel, value: toE164(phone) }
-        : { channel, value: email.trim().toLowerCase() },
-      { onSettled: () => (inFlight.current = false) },
-    );
+        : { channel, value: email.trim().toLowerCase() };
+    void runOnce(() => send.mutateAsync(input));
   }
 
   return (
@@ -82,10 +88,7 @@ export function LoginScreen() {
       <SegmentedTabs
         options={tabs}
         value={channel}
-        onChange={(key) => {
-          send.reset();
-          setChannel(key);
-        }}
+        onChange={setChannel}
         accessibilityLabel="Способ входа"
       />
 
@@ -99,7 +102,7 @@ export function LoginScreen() {
           autoComplete="tel"
           textContentType="telephoneNumber"
           hint="Код придёт в SMS."
-          error={send.isError ? SEND_ERROR : undefined}
+          error={sendError}
           testID="login-phone"
         />
       ) : (
@@ -114,7 +117,7 @@ export function LoginScreen() {
           autoComplete="email"
           textContentType="emailAddress"
           hint="Код придёт в письме. Проверьте папку «Спам», если не нашли."
-          error={send.isError ? SEND_ERROR : undefined}
+          error={sendError}
           testID="login-email"
         />
       )}

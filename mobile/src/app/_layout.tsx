@@ -5,20 +5,22 @@ import {
   Montserrat_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/montserrat';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { getApi } from '@/api';
 import { useSessionStore } from '@/features/auth/sessionStore';
+import { queryClient } from '@/lib/queryClient';
 import { colors } from '@/theme';
 
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [queryClient] = useState(() => new QueryClient());
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Montserrat_500Medium,
     Montserrat_600SemiBold,
     Montserrat_700Bold,
@@ -27,17 +29,37 @@ export default function RootLayout() {
   const hydrated = useSessionStore((state) => state.hydrated);
   const signedIn = useSessionStore((state) => state.tokens !== null);
 
+  // Релизная сборка без реального клиента: говорим об этом прямо, а не «нет соединения».
+  const configError = useMemo(() => {
+    try {
+      getApi();
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : 'Ошибка настройки приложения';
+    }
+  }, []);
+
   useEffect(() => {
     void useSessionStore.getState().hydrate();
   }, []);
 
-  const ready = fontsLoaded && hydrated;
+  // Если шрифт не загрузился, работаем на системном: застрять на заставке хуже.
+  const ready = (fontsLoaded || fontError !== null) && hydrated;
   useEffect(() => {
     if (ready) void SplashScreen.hideAsync();
   }, [ready]);
 
   // Пока нет шрифта и сессии, остаётся заставка: без мигания системного шрифта.
   if (!ready) return null;
+
+  if (configError) {
+    return (
+      <View style={styles.config} accessibilityRole="alert">
+        <Text style={styles.configTitle}>Приложение не настроено</Text>
+        <Text style={styles.configText}>{configError}</Text>
+      </View>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -60,3 +82,9 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  config: { flex: 1, backgroundColor: colors.bg, padding: 24, justifyContent: 'center', gap: 12 },
+  configTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
+  configText: { fontSize: 15, color: colors.textMuted, lineHeight: 22 },
+});

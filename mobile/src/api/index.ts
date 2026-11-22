@@ -1,11 +1,8 @@
 import Constants from 'expo-constants';
 
-import { createMockApi } from './mockApi';
 import type { ApiClient } from './types';
 
 export * from './types';
-export { categories } from './categories';
-export { MOCK_CODE, createMockApi } from './mockApi';
 
 let current: ApiClient | null = null;
 
@@ -20,12 +17,15 @@ export function setApi(client: ApiClient | null) {
  */
 export function getApi(): ApiClient {
   if (current) return current;
-  const mockEnabled = __DEV__ && Constants.expoConfig?.extra?.useMockApi === true;
-  if (!mockEnabled) {
-    throw new Error(
-      'ApiClient не настроен: реальный клиент пока не подключён, мок доступен только в режиме разработки.',
-    );
+  if (__DEV__ && Constants.expoConfig?.extra?.useMockApi === true) {
+    // require внутри __DEV__: в релизной сборке Metro убирает эту ветку целиком,
+    // и мок с тестовыми токенами и кодом не попадает в бандл.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { createMockApi } = require('./mockApi') as typeof import('./mockApi');
+    current = createMockApi();
+    return current;
   }
-  current = createMockApi();
-  return current;
+  throw new Error(
+    'ApiClient не настроен: реальный клиент пока не подключён, мок доступен только в режиме разработки.',
+  );
 }
