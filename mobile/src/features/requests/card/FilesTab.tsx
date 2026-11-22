@@ -17,10 +17,11 @@ function FileRow({ file }: { file: RequestFile }) {
   return (
     <View style={styles.row} testID={`file-${file.id}`}>
       <View style={styles.thumb}>
+        {/* Иконка лежит под картинкой: видна, пока фото не загрузилось или не открылось. */}
+        <Icon name={icons[file.kind]} size={22} color={colors.textMuted} />
         {file.kind === 'image' ? (
           <Image source={{ uri: file.url }} style={styles.image} accessibilityIgnoresInvertColors />
         ) : null}
-        <Icon name={icons[file.kind]} size={22} color={colors.textMuted} />
       </View>
       <View style={styles.texts}>
         <Text weight={700} size={14} numberOfLines={1}>

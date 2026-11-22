@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import type { User } from '@/api';
 import { useOnboardingStore } from '@/features/onboarding/onboardingStore';
 import { createdRequestReset } from '@/features/requests/createdRequestStore';
+import { resetOutbox } from '@/features/requests/chat/outbox';
 import { discardDraft } from '@/features/requests/uploader';
 import { queryClient } from '@/lib/queryClient';
 
@@ -104,6 +105,7 @@ async function persistQuietly(value: Persisted | null) {
 function clearUserData(): Promise<void> {
   const draftCleared = discardDraft();
   createdRequestReset();
+  resetOutbox();
   useOnboardingStore.getState().reset();
   useLoginDraft.getState().reset();
   queryClient.clear();

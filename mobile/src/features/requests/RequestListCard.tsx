@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { RequestSummary } from '@/api';
@@ -12,7 +13,10 @@ type RequestListCardProps = {
 };
 
 /** Карточка заявки в списке: категория, статус, заголовок, исполнитель. */
-export function RequestListCard({ request, onPress }: RequestListCardProps) {
+export const RequestListCard = memo(function RequestListCard({
+  request,
+  onPress,
+}: RequestListCardProps) {
   const executor = request.executor
     ? `${request.executor.name}, ${request.executor.position}`
     : 'Не назначен';
@@ -38,7 +42,7 @@ export function RequestListCard({ request, onPress }: RequestListCardProps) {
       </Text>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

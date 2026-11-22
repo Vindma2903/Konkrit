@@ -6,6 +6,7 @@ import { createMockApi } from '@/api/mockApi';
 import { renderWithProviders } from '@/test/utils';
 
 import { ChatTab } from '../chat/ChatTab';
+import { resetOutbox } from '../chat/outbox';
 import { POLL_INTERVAL_MS } from '../chat/useRequestChat';
 import { setPickers, type PickedFile, type Pickers } from '../pickers';
 
@@ -69,6 +70,7 @@ async function attachFromGallery(files: PickedFile[]) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  resetOutbox();
   pickers();
 });
 

@@ -46,8 +46,10 @@ export function RequestCardScreen() {
     enabled: requestId.length > 0,
   });
 
+  // Уже загруженная карточка не заменяется ошибкой, если повторный запрос не удался.
   const notFound =
-    (request.error instanceof ApiError && request.error.code === 'not_found') || !requestId;
+    !requestId ||
+    (!request.data && request.error instanceof ApiError && request.error.code === 'not_found');
 
   const title = request.data ? `Заявка № ${request.data.number}` : 'Заявка';
 
@@ -65,7 +67,7 @@ export function RequestCardScreen() {
         />
       </View>
     );
-  } else if (request.isError) {
+  } else if (request.isError && !request.data) {
     body = (
       <View style={styles.state}>
         <Text weight={600} size={14} color={colors.error}>
@@ -123,7 +125,7 @@ export function RequestCardScreen() {
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <ScreenHeader title={title} />
       <KeyboardAvoidingView
         style={styles.body}

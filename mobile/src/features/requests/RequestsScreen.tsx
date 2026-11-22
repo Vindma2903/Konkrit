@@ -1,15 +1,15 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getApi, type RequestSummary } from '@/api';
+import { getApi, type RequestsPage, type RequestSummary } from '@/api';
 import { colors, radius } from '@/theme';
 import { Button, Chip, Icon, Text } from '@/ui';
 
 import { DraftCard } from './DraftCard';
-import { isDraftDirty, useRequestDraft } from './draftStore';
+import { useRequestDraft } from './draftStore';
 import { RequestListCard } from './RequestListCard';
 import { filters, filterStatuses, type RequestFilter } from './status';
 
@@ -22,8 +22,12 @@ export function RequestsScreen() {
   const [filter, setFilter] = useState<RequestFilter>('all');
   const [pulling, setPulling] = useState(false);
 
-  const draft = useRequestDraft();
-  const hasDraft = isDraftDirty(draft);
+  // Селекторы по отдельности: набор текста в форме не должен перерисовывать список целиком.
+  const draftCategory = useRequestDraft((state) => state.category);
+  const draftDescription = useRequestDraft((state) => state.description);
+  const draftFiles = useRequestDraft((state) => state.attachments.length);
+  const hasDraft = draftCategory !== null || draftDescription.trim().length > 0 || draftFiles > 0;
+  const queryClient = useQueryClient();
 
   const query = useInfiniteQuery({
     queryKey: ['requests', filter],
@@ -33,34 +37,62 @@ export function RequestsScreen() {
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
 
+  const { refetch } = query;
+
+  /** Обновление списка заново с первой страницы: загруженные дальше страницы отбрасываем. */
+  const refreshFirstPage = useCallback(async () => {
+    queryClient.setQueryData<InfiniteData<RequestsPage, string | null>>(
+      ['requests', filter],
+      (data) =>
+        data ? { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) } : data,
+    );
+    await refetch();
+  }, [filter, queryClient, refetch]);
+
   // При возврате на вкладку список обновляется (первый показ уже загружает запрос).
   const firstFocus = useRef(true);
-  const { refetch } = query;
   useFocusEffect(
     useCallback(() => {
       if (firstFocus.current) {
         firstFocus.current = false;
         return;
       }
-      void refetch();
-    }, [refetch]),
+      void refreshFirstPage();
+    }, [refreshFirstPage]),
   );
 
-  const items = query.data?.pages.flatMap((page) => page.items) ?? [];
+  // Страницы склеиваются без повторов: сервер мог сдвинуть записи между запросами.
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    return (query.data?.pages ?? [])
+      .flatMap((page) => page.items)
+      .filter((item) => (seen.has(item.id) ? false : (seen.add(item.id), true)));
+  }, [query.data]);
 
   async function pullToRefresh() {
     setPulling(true);
     try {
-      await refetch();
+      await refreshFirstPage();
     } finally {
       setPulling(false);
     }
   }
 
+  const openRequest = useCallback(
+    (id: string) => router.push({ pathname: '/requests/[id]', params: { id } }),
+    [],
+  );
+  const renderItem = useCallback(
+    ({ item }: { item: RequestSummary }) => (
+      <RequestListCard request={item} onPress={() => openRequest(item.id)} />
+    ),
+    [openRequest],
+  );
+
   const draftCard = hasDraft ? (
     <DraftCard
-      categoryName={draft.category?.name}
-      description={draft.description}
+      categoryName={draftCategory?.name}
+      description={draftDescription}
       onPress={() => router.push('/requests/new')}
     />
   ) : null;
@@ -72,7 +104,7 @@ export function RequestsScreen() {
         <Text weight={600} size={14} color={colors.error}>
           Не удалось загрузить заявки
         </Text>
-        <Button title="Повторить" onPress={() => void refetch()} testID="requests-retry" />
+        <Button title="Повторить" onPress={() => void refreshFirstPage()} testID="requests-retry" />
       </View>
     );
   } else if (query.isPending) {
@@ -109,7 +141,7 @@ export function RequestsScreen() {
       <Text weight={600} size={13} color={colors.error}>
         Не удалось загрузить заявки
       </Text>
-      <Button title="Повторить" onPress={() => void refetch()} testID="requests-retry" />
+      <Button title="Повторить" onPress={() => void refreshFirstPage()} testID="requests-retry" />
     </View>
   ) : null;
 
@@ -126,7 +158,6 @@ export function RequestsScreen() {
         showsHorizontalScrollIndicator={false}
         style={styles.filtersScroll}
         contentContainerStyle={styles.filters}
-        accessibilityRole="tablist"
       >
         {filters.map((item) => (
           <Chip
@@ -143,12 +174,7 @@ export function RequestsScreen() {
       <FlatList
         data={items}
         keyExtractor={(item: RequestSummary) => item.id}
-        renderItem={({ item }) => (
-          <RequestListCard
-            request={item}
-            onPress={() => router.push({ pathname: '/requests/[id]', params: { id: item.id } })}
-          />
-        )}
+        renderItem={renderItem}
         ItemSeparatorComponent={Separator}
         ListHeaderComponent={
           draftCard || empty ? (

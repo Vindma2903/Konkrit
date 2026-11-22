@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import type { ChatMessage, MessageAttachment, MessageAuthorRole } from '@/api';
@@ -31,7 +31,7 @@ type ChatBubbleProps = {
 };
 
 /** Сообщение переписки: чужие слева на белом, свои справа на коралловом; фото — картинка 160×96. */
-export function ChatBubble({
+export const ChatBubble = memo(function ChatBubble({
   mine,
   role,
   text,
@@ -102,7 +102,8 @@ export function ChatBubble({
           accessibilityRole="button"
           accessibilityLabel="Повторить отправку"
           onPress={onRetry}
-          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+          hitSlop={{ left: 8, right: 8 }}
+          style={styles.retry}
           testID={`${testID}-retry`}
         >
           <Text weight={700} size={11} color={colors.error}>
@@ -112,7 +113,7 @@ export function ChatBubble({
       ) : null}
     </View>
   );
-}
+});
 
 /** Подпись автора и признак «своё» берутся из сообщения сервера. */
 export function bubbleFromMessage(message: ChatMessage) {
@@ -126,6 +127,7 @@ export function bubbleFromMessage(message: ChatMessage) {
 
 const styles = StyleSheet.create({
   column: { gap: 4, maxWidth: '100%' },
+  retry: { minHeight: 44, justifyContent: 'center' },
   mine: { alignItems: 'flex-end' },
   theirs: { alignItems: 'flex-start' },
   bubble: { maxWidth: 260, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },

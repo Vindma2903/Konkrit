@@ -1,17 +1,16 @@
-import { useCallback, useState } from 'react';
-import { FlatList, Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { FlatList, Linking, StyleSheet, View } from 'react-native';
 
 import { attachmentLimits } from '@/config';
-import { colors, fontFamily, sizes } from '@/theme';
-import { Button, FieldError, Icon, LinkText, Text } from '@/ui';
+import { colors } from '@/theme';
+import { Button, FieldError, LinkText, Text } from '@/ui';
 
 import { AttachSheet } from '../AttachSheet';
 import { getPickers, type PickResult } from '../pickers';
 import { bubbleFromMessage, ChatBubble } from './ChatBubble';
+import { ChatInputBar } from './ChatInputBar';
 import { runPick } from './pickFlow';
 import { useRequestChat, type ChatItem } from './useRequestChat';
-
-const MESSAGE_MAX = 1000;
 
 type ChatTabProps = {
   requestId: string;
@@ -21,19 +20,13 @@ type ChatTabProps = {
 
 /** Вкладка «Чат»: переписка, строка ввода со скрепкой и отправка (макет «Карточка заявки»). */
 export function ChatTab({ requestId, active }: ChatTabProps) {
-  const chat = useRequestChat(requestId, active);
-  const [text, setText] = useState('');
+  const { items, isPending, isError, refetch, sendText, sendFile, retry } = useRequestChat(
+    requestId,
+    active,
+  );
   const [sheetOpen, setSheetOpen] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
   const [denied, setDenied] = useState<'camera' | 'library' | null>(null);
-
-  const canSend = text.trim().length > 0;
-
-  function send() {
-    if (!canSend) return;
-    chat.sendText(text);
-    setText('');
-  }
 
   async function pick(run: () => Promise<PickResult>) {
     setSheetOpen(false);
@@ -42,13 +35,14 @@ export function ChatTab({ requestId, active }: ChatTabProps) {
     const outcome = await runPick(run);
     setMessages(outcome.messages);
     setDenied(outcome.denied);
-    for (const file of outcome.accepted) chat.sendFile(file);
+    for (const file of outcome.accepted) sendFile(file);
   }
 
+  const openSheet = useCallback(() => setSheetOpen(true), []);
   const pickers = getPickers();
 
   // Новейшие сообщения внизу: список перевёрнут, поэтому данные идут от новых к старым.
-  const data = [...chat.items].reverse();
+  const data = useMemo(() => [...items].reverse(), [items]);
   const renderItem = useCallback(
     ({ item }: { item: ChatItem }) =>
       item.kind === 'server' ? (
@@ -72,28 +66,28 @@ export function ChatTab({ requestId, active }: ChatTabProps) {
               : undefined
           }
           delivery={item.pending.status}
-          onRetry={() => chat.retry(item.pending.clientMessageId)}
+          onRetry={() => retry(item.pending.clientMessageId)}
           testID={`message-${item.key}`}
         />
       ),
-    [chat],
+    [retry],
   );
 
   return (
     <View style={styles.root}>
       <View style={styles.area}>
-        {chat.isError && chat.items.length === 0 ? (
+        {isError && items.length === 0 ? (
           <View style={styles.state}>
             <Text weight={600} size={14} color={colors.error}>
               Не удалось загрузить переписку
             </Text>
-            <Button title="Повторить" onPress={() => void chat.refetch()} testID="chat-retry" />
+            <Button title="Повторить" onPress={() => void refetch()} testID="chat-retry" />
           </View>
-        ) : chat.isPending ? (
+        ) : isPending ? (
           <Text weight={600} size={14} color={colors.textMuted}>
             Загружаем переписку…
           </Text>
-        ) : chat.items.length === 0 ? (
+        ) : items.length === 0 ? (
           <Text size={14} color={colors.textMuted} testID="chat-empty">
             Сообщений пока нет. Напишите исполнителю или куратору
           </Text>
@@ -128,42 +122,7 @@ export function ChatTab({ requestId, active }: ChatTabProps) {
         </View>
       ) : null}
 
-      <View style={styles.inputRow}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Прикрепить файл"
-          onPress={() => setSheetOpen(true)}
-          style={[styles.round, styles.attach]}
-          testID="chat-attach"
-        >
-          <Icon name="attach" size={24} color={colors.text} />
-        </Pressable>
-        <TextInput
-          accessibilityLabel="Сообщение"
-          placeholder="Сообщение"
-          placeholderTextColor={colors.textMuted}
-          value={text}
-          onChangeText={(value) => setText(value.slice(0, MESSAGE_MAX))}
-          maxLength={MESSAGE_MAX}
-          maxFontSizeMultiplier={1.3}
-          returnKeyType="send"
-          blurOnSubmit={false}
-          onSubmitEditing={send}
-          style={styles.input}
-          testID="chat-input"
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Отправить"
-          accessibilityState={{ disabled: !canSend }}
-          disabled={!canSend}
-          onPress={send}
-          style={[styles.round, canSend ? styles.send : styles.sendOff]}
-          testID="chat-send"
-        >
-          <Icon name="send" size={24} color={canSend ? colors.onAccent : colors.disabledText} />
-        </Pressable>
-      </View>
+      <ChatInputBar onSend={sendText} onAttach={openSheet} />
 
       <AttachSheet
         visible={sheetOpen}
@@ -191,25 +150,4 @@ const styles = StyleSheet.create({
   messages: { paddingBottom: 8 },
   separator: { height: 12 },
   denied: { gap: 4 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingBottom: 8 },
-  round: {
-    width: sizes.touch,
-    height: sizes.touch,
-    borderRadius: sizes.touch / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  attach: { backgroundColor: colors.surface },
-  send: { backgroundColor: colors.accent },
-  sendOff: { backgroundColor: colors.disabledBg },
-  input: {
-    flex: 1,
-    height: sizes.touch,
-    paddingHorizontal: 16,
-    borderRadius: sizes.touch / 2,
-    backgroundColor: colors.surface,
-    fontFamily: fontFamily[500],
-    fontSize: 14,
-    color: colors.text,
-  },
 });
