@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, View, type ScrollViewInstance } from 'react-native';
@@ -62,6 +62,7 @@ export function NewRequestScreen() {
   const fieldY = useRef<Partial<Record<FieldKey, number>>>({});
   const autoRetried = useRef(false);
   const runOnce = useSingleFlight();
+  const queryClient = useQueryClient();
 
   // Черновик принадлежит жителю: чужой стираем, свой помечаем.
   const userId = useSessionStore((state) => state.user?.id);
@@ -144,6 +145,8 @@ export function NewRequestScreen() {
         address: residency ? `${residency.address}, кв. ${residency.apartment}` : '',
         answerWithinMin: result.answerWithinMin,
       });
+      // Новая заявка должна появиться в списке «Мои заявки».
+      void queryClient.invalidateQueries({ queryKey: ['requests'] });
       leaveScreen();
       void discardDraft();
       router.replace('/requests/sent');

@@ -67,6 +67,40 @@ const glyphs = {
   wifiOff: (
     <Path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01" />
   ),
+  news: (
+    <>
+      <Path d="M5 4h11a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2V4Z" />
+      <Path d="M18 9h1a1 1 0 0 1 1 1v7a2 2 0 0 1-2 2" />
+      <Path d="M8 8h6M8 12h6M8 16h4" />
+    </>
+  ),
+  requests: (
+    <>
+      <Rect x={5} y={4} width={14} height={17} rx={3} />
+      <Path d="M9 9h6M9 13h6M9 17h3" />
+    </>
+  ),
+  services: (
+    <>
+      <Rect x={4} y={4} width={7} height={7} rx={2} />
+      <Rect x={13} y={4} width={7} height={7} rx={2} />
+      <Rect x={4} y={13} width={7} height={7} rx={2} />
+      <Rect x={13} y={13} width={7} height={7} rx={2} />
+    </>
+  ),
+  chat: (
+    <Path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-5 4v-4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+  ),
+  profile: (
+    <>
+      <Circle cx={12} cy={8} r={4} />
+      <Path d="M4 21a8 8 0 0 1 16 0" />
+    </>
+  ),
+  attach: (
+    <Path d="m20 11-8.5 8.5a5 5 0 0 1-7-7L13 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L14 7" />
+  ),
+  send: <Path d="M4 12 20 4l-4 16-4-6-8-2Z" />,
   suggest: (
     <Path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />
   ),

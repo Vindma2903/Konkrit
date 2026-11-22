@@ -83,11 +83,11 @@ export default function RootLayout() {
           <Stack.Screen name="choose-home" />
           <Stack.Screen name="apartment" />
           <Stack.Screen name="residency-sent" />
-          <Stack.Screen name="home" />
+          <Stack.Screen name="(tabs)" />
           <Stack.Screen name="requests/new" />
           <Stack.Screen name="requests/sent" options={{ gestureEnabled: false }} />
           <Stack.Screen name="requests/failed" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="requests/details" />
+          <Stack.Screen name="requests/[id]" />
         </Stack.Protected>
       </Stack>
     </QueryClientProvider>

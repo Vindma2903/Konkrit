@@ -173,6 +173,26 @@ paths:
                   - $ref: '#/components/schemas/Category'
                   - type: 'null'
   /requests:
+    get:
+      tags: [requests]
+      summary: Заявки текущего жителя, новые сверху
+      parameters:
+        - name: status
+          in: query
+          description: Через запятую; без параметра — все статусы
+          schema: { type: string, example: "in_progress,waiting" }
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 50 }
+      responses:
+        '200':
+          description: Страница заявок
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestsPage' }
     post:
       tags: [requests]
       summary: Создать заявку
@@ -192,6 +212,81 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /requests/{id}:
+    get:
+      tags: [requests]
+      summary: Карточка заявки
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Заявка
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestDetails' }
+        '404':
+          description: Заявки нет или она чужая
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /requests/{id}/messages:
+    get:
+      tags: [requests]
+      summary: Переписка по заявке, по порядку
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Сообщения
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ChatMessage' }
+    post:
+      tags: [requests]
+      summary: Отправить сообщение или вложение
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessageCreate' }
+      responses:
+        '201':
+          description: Сообщение создано (повтор с тем же clientMessageId возвращает то же)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatMessage' }
+  /requests/{id}/history:
+    get:
+      tags: [requests]
+      summary: История заявки, новые сверху
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: События
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HistoryEvent' }
+  /requests/{id}/files:
+    get:
+      tags: [requests]
+      summary: Файлы заявки и переписки
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Файлы
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MessageAttachment' }
 components:
   securitySchemes:
     bearerAuth:
@@ -301,6 +396,96 @@ components:
         answerWithinMin:
           type: integer
           description: За сколько минут отвечает диспетчер
+    RequestStatus:
+      type: string
+      enum: [new, in_progress, waiting, completed, cancelled]
+    Person:
+      type: object
+      required: [name, position]
+      properties:
+        name: { type: string }
+        position: { type: string }
+    RequestSummary:
+      type: object
+      required: [id, number, title, categoryName, status, executor, createdAt]
+      properties:
+        id: { type: string }
+        number: { type: integer }
+        title:
+          type: string
+          description: Заголовок заявки, сервер выводит его из описания (первая фраза до 60 символов)
+        categoryName: { type: string }
+        status: { $ref: '#/components/schemas/RequestStatus' }
+        executor:
+          oneOf:
+            - $ref: '#/components/schemas/Person'
+            - type: 'null'
+        createdAt: { type: string, format: date-time }
+    RequestDetails:
+      allOf:
+        - $ref: '#/components/schemas/RequestSummary'
+        - type: object
+          required: [address, curator]
+          properties:
+            address: { type: string }
+            curator:
+              oneOf:
+                - $ref: '#/components/schemas/Person'
+                - type: 'null'
+    RequestsPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/RequestSummary' }
+        nextCursor:
+          oneOf:
+            - { type: string }
+            - type: 'null'
+    MessageAttachment:
+      type: object
+      required: [id, kind, name, url]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [image, video, document] }
+        name: { type: string }
+        url: { type: string }
+        size: { type: integer }
+    ChatMessage:
+      type: object
+      required: [id, author, mine, createdAt]
+      properties:
+        id: { type: string }
+        clientMessageId: { type: string }
+        author:
+          type: object
+          required: [role]
+          properties:
+            role: { type: string, enum: [resident, executor, curator, dispatcher] }
+            name: { type: string }
+        mine: { type: boolean }
+        text: { type: string }
+        attachment: { $ref: '#/components/schemas/MessageAttachment' }
+        createdAt: { type: string, format: date-time }
+    MessageCreate:
+      type: object
+      required: [clientMessageId]
+      properties:
+        clientMessageId:
+          type: string
+          description: Ключ идемпотентности от клиента
+        text: { type: string, maxLength: 1000 }
+        attachmentIds:
+          type: array
+          items: { type: string }
+    HistoryEvent:
+      type: object
+      required: [id, at, text]
+      properties:
+        id: { type: string }
+        at: { type: string, format: date-time }
+        text: { type: string }
     Error:
       type: object
       required: [code]

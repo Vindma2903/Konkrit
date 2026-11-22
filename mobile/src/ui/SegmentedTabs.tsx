@@ -11,6 +11,8 @@ type SegmentedTabsProps<T extends string> = {
   value: T;
   onChange: (key: T) => void;
   accessibilityLabel: string;
+  /** Префикс testID вкладок: `${prefix}-${key}`. */
+  testIDPrefix?: string;
 };
 
 /** Переключатель способа: серая подложка, активный — белая плашка (как в макете входа). */
@@ -19,6 +21,7 @@ export function SegmentedTabs<T extends string>({
   value,
   onChange,
   accessibilityLabel,
+  testIDPrefix = 'tab',
 }: SegmentedTabsProps<T>) {
   return (
     <View accessibilityRole="tablist" accessibilityLabel={accessibilityLabel} style={styles.track}>
@@ -30,7 +33,7 @@ export function SegmentedTabs<T extends string>({
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             onPress={() => onChange(option.key)}
-            testID={`tab-${option.key}`}
+            testID={`${testIDPrefix}-${option.key}`}
             style={[styles.tab, selected ? styles.tabActive : null]}
           >
             <Text weight={700} size={14} color={selected ? colors.text : colors.textMuted}>

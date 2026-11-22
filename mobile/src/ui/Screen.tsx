@@ -19,13 +19,22 @@ type ScreenProps = {
   children: ReactNode;
   contentGap?: number;
   scrollRef?: Ref<ScrollViewInstance>;
+  /** Учитывать нижнюю safe area (на экранах внутри вкладок её уже занимает панель вкладок). */
+  bottomInset?: boolean;
 };
 
 /**
  * Каркас экрана: шапка, вертикальный скролл всего экрана, закреплённый низ.
  * Если содержимое не помещается, над низом рисуется тень.
  */
-export function Screen({ header, footer, children, contentGap = 20, scrollRef }: ScreenProps) {
+export function Screen({
+  header,
+  footer,
+  children,
+  contentGap = 20,
+  scrollRef,
+  bottomInset = true,
+}: ScreenProps) {
   const insets = useSafeAreaInsets();
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
@@ -52,7 +61,7 @@ export function Screen({ header, footer, children, contentGap = 20, scrollRef }:
         <View
           style={[
             styles.footer,
-            { paddingBottom: Math.max(insets.bottom, 12) + 12 },
+            { paddingBottom: (bottomInset ? Math.max(insets.bottom, 12) : 12) + 12 },
             overflows ? styles.footerShadow : null,
           ]}
           testID="screen-footer"
