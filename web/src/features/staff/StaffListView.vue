@@ -84,7 +84,8 @@ async function load(silent = false) {
     members.value = list;
     loadError.value = false;
   } catch {
-    if (mine === version) loadError.value = true;
+    // Тихое обновление после действия не подменяет таблицу экраном ошибки
+    if (mine === version && !silent) loadError.value = true;
   } finally {
     if (mine === version) loading.value = false;
   }

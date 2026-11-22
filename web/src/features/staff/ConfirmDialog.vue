@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, useId } from 'vue';
 import { useFocusTrap } from './focus';
 
 const props = defineProps<{
@@ -17,6 +17,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
+const textId = useId();
 
 const root = ref<HTMLElement | null>(null);
 // Первый фокус — на «Отмена»: случайный Enter не подтвердит действие
@@ -26,9 +27,9 @@ useFocusTrap(root, () => emit('cancel'), '[data-cancel]', () => props.opener);
 <template>
   <div class="overlay overlay--center">
     <button class="overlay__shade" type="button" tabindex="-1" aria-label="Закрыть" @click="emit('cancel')" />
-    <div ref="root" class="dialog" role="alertdialog" aria-modal="true" :aria-label="title">
+    <div ref="root" class="dialog" role="alertdialog" aria-modal="true" :aria-label="title" :aria-describedby="text ? textId : undefined">
       <h2 class="dialog__title">{{ title }}</h2>
-      <p v-if="text" class="subtitle">{{ text }}</p>
+      <p v-if="text" :id="textId" class="subtitle">{{ text }}</p>
       <p v-if="error" class="alert" role="alert">{{ error }}</p>
       <div class="dialog__actions">
         <button

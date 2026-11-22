@@ -34,12 +34,13 @@
 ## Контракт (`api/openapi.yaml`, все пути под Bearer, право `staff.manage`)
 - `GET /staff/access-requests?status=pending|rejected` → `{items:[{id,name,email,phone,company,createdAt,status}], pendingCount}`.
 - `POST /staff/access-requests/{id}/approve` `{role, scope:{all:boolean, houseIds:string[]}, notify:boolean}` → `204`.
-- `POST /staff/access-requests/{id}/reject` → `204`. Ошибки: `not_found`, `already_processed` (409, в `fields.status` текущий статус).
-- `GET /staff/members?query&role&houseId&status` → `{items:[{id,name,email,phone,role,scope,status}]}`; `status`: `active | vacation | disabled`.
+- `POST /staff/access-requests/{id}/reject` → `204`. Ошибка `already_processed` (409, в `fields.status` текущее состояние): заявку уже подтвердили или отклонили, в том числе когда её больше нет в списке.
+- `GET /staff/members?query&role&houseId&status` → массив `[{id,name,email,phone,role,scope,status}]`; `status`: `active | vacation | disabled`.
 - `PATCH /staff/members/{id}` `{role?, scope?, status?}` → `204`. Ошибка `last_manager` (409): нельзя отключить или понизить последнего руководителя.
-- `GET /staff/roles` → `{roles, permissions, matrix}`; `PUT /staff/roles` `{matrix}` → `204`. Ячейка «Руководитель × `staff.manage`» не меняется: сервер отвечает `validation`.
+- `GET /staff/roles` → матрица `{dispatcher:[права], engineer:[…], executor:[…], manager:[…]}`; `PUT /staff/roles` `{matrix}` → `204`. Названия ролей и прав — справочники клиента. Ячейка «Руководитель × `staff.manage`» не меняется: сервер отвечает `validation`.
 - `GET /staff/houses` → `[{id,title}]` для списка «Дома и участки».
-- `StaffSession.user` получает `permissions: string[]`; `role` — одно из четырёх значений.
+- `StaffSession.user` получает `permissions: string[]`; `role` — одно из четырёх значений. Это ломающее изменение перечисления ролей в ещё не опубликованном контракте (бэкенда нет); старые мок-сессии отбрасываются.
+- Access-токен живёт недолго: при `401` клиент один раз обновляет сессию по refresh-куке и повторяет запрос, сессия сбрасывается только если обновить не удалось.
 - `register` создаёт заявку со статусом `pending` без роли; `login` у `pending` отвечает `pending_approval`, у отклонённой — `rejected`.
 
 ## Сквозная цепочка и мок

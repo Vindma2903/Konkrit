@@ -21,7 +21,14 @@ const active = computed<'all' | 'pending' | 'rejected'>(() => {
     </div>
   </div>
   <nav class="tabs" aria-label="Список сотрудников">
-    <RouterLink class="tab" :class="{ 'tab--active': active === 'all' }" :to="{ name: 'staff' }">Все</RouterLink>
+    <RouterLink
+      class="tab"
+      :class="{ 'tab--active': active === 'all' }"
+      :to="{ name: 'staff' }"
+      :aria-current="active === 'all' ? 'page' : undefined"
+    >
+      Все
+    </RouterLink>
     <RouterLink
       class="tab"
       :class="{ 'tab--active': active === 'pending' }"

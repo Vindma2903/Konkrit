@@ -91,6 +91,11 @@ function askReject(request: AccessRequest, event?: Event) {
   rejecting.value = request;
 }
 
+function cancelReject() {
+  rejecting.value = null;
+  actionError.value = '';
+}
+
 function closeAll() {
   reviewing.value = null;
   rejecting.value = null;
@@ -193,11 +198,19 @@ async function reject() {
             </td>
             <td>
               <div class="row-actions">
-                <button class="btn btn--sm" type="button" @click.stop="open(request, $event)">Подтвердить</button>
+                <button
+                  class="btn btn--sm"
+                  type="button"
+                  :aria-label="`Подтвердить: ${request.name}`"
+                  @click.stop="open(request, $event)"
+                >
+                  Подтвердить
+                </button>
                 <button
                   v-if="request.status === 'pending'"
                   class="btn btn--sm btn--outline"
                   type="button"
+                  :aria-label="`Отклонить: ${request.name}`"
                   @click.stop="askReject(request, $event)"
                 >
                   Отклонить
@@ -232,7 +245,7 @@ async function reject() {
       :error="actionError"
       :opener="opener"
       @confirm="reject"
-      @cancel="rejecting = null"
+      @cancel="cancelReject"
     />
   </section>
 </template>

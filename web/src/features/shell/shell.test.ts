@@ -90,7 +90,7 @@ describe('каркас CRM: выход', () => {
 });
 
 describe('каркас CRM: отказы сервера', () => {
-  it('forbidden обновляет права: меню и доступ меняются без повторного входа', async () => {
+  it('reload подтягивает выданное право: меню меняется без повторного входа', async () => {
     const mock = createMockStaff({ latencyMs: 0 });
     const first = await mountApp('/login', undefined, mock);
     const store = useSessionStore(first.pinia);

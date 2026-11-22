@@ -51,6 +51,7 @@
 .page__actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .empty-state { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; padding-top: 48px; }
 .btn--inline { height: 48px; }
+.toast--hidden { display: none; }
 .toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: #fff;
   border-radius: 999px; padding: 12px 20px; font-size: 14px; font-weight: 600; z-index: 50;
@@ -69,7 +70,7 @@
 .banner { padding: 14px 18px; border-radius: 16px; background: var(--amber-bg); color: var(--amber); font-size: 14px; font-weight: 600; line-height: 1.45; }
 .btn--outline { background: #fff; color: var(--text); box-shadow: inset 0 0 0 1.5px var(--border); height: 48px; padding: 0 20px; font-size: 14px; }
 .btn--outline:hover:not(:disabled) { background: #f7f7f5; }
-.btn--sm { height: 40px; padding: 0 16px; font-size: 13px; }
+.btn--sm { height: 44px; padding: 0 16px; font-size: 13px; }
 .btn--danger-soft { background: var(--accent-soft); color: var(--error); }
 .btn--danger-soft:hover:not(:disabled) { background: #f9d9d9; }
 .table-card { overflow-x: auto; border-radius: 20px; background: #fff; }
@@ -156,6 +157,6 @@
 /* Меню действий в строке */
 .menu { position: relative; display: inline-block; }
 .menu__list {
-  position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 220px; background: #fff; border-radius: 14px;
+  position: fixed; z-index: 60; min-width: 220px; background: #fff; border-radius: 14px;
   padding: 6px; box-shadow: 0 8px 28px rgba(29, 35, 43, 0.18); display: flex; flex-direction: column;
 }

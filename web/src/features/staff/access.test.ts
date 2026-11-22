@@ -183,13 +183,17 @@ describe('заявки на доступ: панель подтверждени�
     await flushPromises();
   });
 
-  it('заявку уже обработали: панель закрывается, сообщение, список обновлён', async () => {
+  it('заявку уже обработали: панель закрывается, сообщение, список действительно обновлён', async () => {
     const { wrapper, mock } = await panelOpen();
-    vi.spyOn(mock.admin, 'approveAccessRequest').mockRejectedValue(new ApiError('already_processed'));
+    // другой администратор успел подтвердить эту же заявку
+    const state = mock.state();
+    state.requests = state.requests.filter((item) => item.id !== 'request-1');
     await wrapper.findAll('.checklist input')[0]!.setValue(true);
     await button(wrapper, 'Подтвердить доступ').trigger('click');
     await vi.waitFor(() => expect(wrapper.find('[role=dialog]').exists()).toBe(false));
     expect(wrapper.find('.toast').text()).toBe('Заявка уже обработана');
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="request-request-1"]').exists()).toBe(false));
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1);
   });
 
   it('нет сети: сообщение в панели, введённое сохранено', async () => {
@@ -209,7 +213,7 @@ describe('заявки на доступ: панель подтверждени�
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await flushPromises();
     expect(wrapper.find('[role=dialog]').exists()).toBe(false);
-    expect(document.activeElement?.textContent).toBe('Подтвердить');
+    expect(document.activeElement?.textContent?.trim()).toBe('Подтвердить');
   });
 
   it('Tab не выходит за панель', async () => {

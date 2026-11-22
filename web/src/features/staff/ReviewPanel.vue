@@ -41,9 +41,14 @@ const emit = defineEmits<{
 
 const titleId = useId();
 const roleId = useId();
+const scopeErrorId = useId();
 const root = ref<HTMLElement | null>(null);
 const list = ref<HTMLElement | null>(null);
-useFocusTrap(root, () => emit('close'), '[data-close]', () => props.opener);
+// Пока идёт запрос, закрыть панель нельзя: иначе ошибка запроса некуда выведется
+function requestClose() {
+  if (!props.busy) emit('close');
+}
+useFocusTrap(root, requestClose, '[data-close]', () => props.opener);
 
 const role = ref<StaffRole>(props.initialRole ?? 'engineer');
 const all = ref(props.initialScope?.all ?? false);
@@ -109,7 +114,7 @@ async function submit() {
 
 <template>
   <div class="overlay">
-    <button class="overlay__shade" type="button" tabindex="-1" aria-label="Закрыть" @click="emit('close')" />
+    <button class="overlay__shade" type="button" tabindex="-1" aria-label="Закрыть" @click="requestClose" />
     <div ref="root" class="panel" role="dialog" aria-modal="true" :aria-labelledby="titleId">
       <div class="panel__head">
         <div class="group">
@@ -120,7 +125,7 @@ async function submit() {
             Заявка на доступ от {{ formatDate(requestedAt) }}
           </span>
         </div>
-        <button class="close-btn" type="button" data-close aria-label="Закрыть" @click="emit('close')">
+        <button class="close-btn" type="button" data-close aria-label="Закрыть" :disabled="busy" @click="requestClose">
           <Icon name="close" />
         </button>
       </div>
@@ -150,7 +155,7 @@ async function submit() {
 
           <div class="group" role="group" aria-label="Дома и участки">
             <span class="group__label">Дома и участки</span>
-            <div ref="list" class="checklist">
+            <div ref="list" class="checklist" :aria-describedby="scopeError ? scopeErrorId : undefined">
               <label :class="{ 'is-on': all }">
                 <input type="checkbox" :checked="all" @change="toggleAll(($event.target as HTMLInputElement).checked)" />
                 <span>Все дома и участки</span>
@@ -165,7 +170,7 @@ async function submit() {
                 <span>{{ house.title }}</span>
               </label>
             </div>
-            <p v-if="scopeError" class="field__error" role="alert">{{ scopeError }}</p>
+            <p v-if="scopeError" :id="scopeErrorId" class="field__error" role="alert">{{ scopeError }}</p>
           </div>
 
           <div class="can-box" aria-live="polite" data-testid="can-box">

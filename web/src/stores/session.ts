@@ -70,13 +70,26 @@ export const useSessionStore = defineStore('session', () => {
    * Обновить роль и права без повторного входа (после отказа по праву и при возврате на вкладку).
    * Если сервер больше не признаёт сессию (например, доступ отключён), она сбрасывается.
    */
-  async function reload() {
-    if (!session.value) return;
-    try {
-      session.value = await getApi().refresh();
-    } catch (error) {
-      if (error instanceof ApiError && error.code === 'unauthorized') session.value = null;
-    }
+  let reloading: Promise<void> | null = null;
+
+  function reload(): Promise<void> {
+    if (!session.value) return Promise.resolve();
+    // Параллельные вызовы (две ошибки подряд, возврат на вкладку) делят один запрос
+    reloading ??= (async () => {
+      const before = session.value;
+      try {
+        const next = await getApi().refresh();
+        // Пока шёл запрос, сотрудник мог выйти или войти другой: чужой ответ не записываем
+        if (session.value === before) session.value = next;
+      } catch (error) {
+        if (error instanceof ApiError && error.code === 'unauthorized' && session.value === before) {
+          session.value = null;
+        }
+      } finally {
+        reloading = null;
+      }
+    })();
+    return reloading;
   }
 
   /** Сервер отказал по токену и обновить его не удалось. */

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { roleTitle } from '@/api';
 import Icon from '@/features/auth/Icon.vue';
@@ -64,12 +64,40 @@ onMounted(() => {
 onBeforeUnmount(() => {
   clearInterval(timer);
   document.removeEventListener('visibilitychange', onVisible);
+  document.removeEventListener('mousedown', onOutside);
   access.reset();
   toast.clear();
 });
 watch(canManageStaff, startPolling);
 
 const menuOpen = ref(false);
+const userBox = ref<HTMLElement | null>(null);
+const userButton = ref<HTMLButtonElement | null>(null);
+
+function onOutside(event: MouseEvent) {
+  if (!userBox.value?.contains(event.target as Node)) closeMenu(false);
+}
+
+function closeMenu(returnFocus: boolean) {
+  menuOpen.value = false;
+  document.removeEventListener('mousedown', onOutside);
+  if (returnFocus) userButton.value?.focus();
+}
+
+async function toggleMenu() {
+  if (menuOpen.value) return closeMenu(true);
+  menuOpen.value = true;
+  await nextTick();
+  userBox.value?.querySelector<HTMLElement>('[role=menuitem]')?.focus();
+  document.addEventListener('mousedown', onOutside);
+}
+
+function onMenuKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && menuOpen.value) {
+    event.stopPropagation();
+    closeMenu(true);
+  }
+}
 const logoutError = ref('');
 const loggingOut = ref(false);
 
@@ -112,13 +140,14 @@ async function logout() {
           </template>
         </RouterLink>
       </nav>
-      <div class="shell__user">
+      <div ref="userBox" class="shell__user" @keydown="onMenuKeydown">
         <button
+          ref="userButton"
           class="user-btn"
           type="button"
           aria-haspopup="menu"
           :aria-expanded="menuOpen"
-          @click="menuOpen = !menuOpen"
+          @click="toggleMenu"
         >
           <span class="avatar" aria-hidden="true"><Icon name="user" /></span>
           <span class="user-btn__text">
@@ -139,6 +168,9 @@ async function logout() {
       <NoAccess v-if="denied" />
       <RouterView v-else />
     </main>
-    <div v-if="toast.message" class="toast" role="status">{{ toast.message }}</div>
+    <!-- Область озвучивания существует всегда: вставленная вместе с текстом она часто не читается -->
+    <div class="toast" :class="{ 'toast--hidden': !toast.message }" role="status" aria-live="polite">
+      {{ toast.message }}
+    </div>
   </div>
 </template>

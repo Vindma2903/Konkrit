@@ -1,6 +1,7 @@
 import { currentToken } from './token';
 import {
   ApiError,
+  ROLES,
   type AccessRequest,
   type House,
   type MemberFilters,
@@ -36,6 +37,8 @@ const COMPANY = 'УК «Тест-Сервис»';
 const ADMIN_EMAIL = 'manager@uk.ru';
 const FLAG = 'mock-staff-session';
 const STORE_KEY = 'mock-staff-store-v1';
+
+const STATUSES: StaffMember['status'][] = ['active', 'vacation', 'disabled'];
 
 const ALL: Permission[] = [
   'requests.create',
@@ -198,6 +201,14 @@ export function createMockStaff({
   persist = false,
 }: { latencyMs?: number; persist?: boolean } = {}): MockStaff {
   const state = load(persist);
+  // Другая вкладка могла изменить хранилище: перед каждым вызовом перечитываем его
+  const sync = () => {
+    if (persist) Object.assign(state, load(true));
+  };
+  const begin = async (ms = latencyMs) => {
+    await delay(ms);
+    sync();
+  };
   const tokens = new Map<string, string>();
   const usedTokens = new Set<string>();
   let tokenCounter = 0;
@@ -210,6 +221,8 @@ export function createMockStaff({
       // без хранилища данные живут до перезагрузки
     }
   };
+  // Первое обращение: сохраняем начальные данные, чтобы другая вкладка видела те же записи
+  if (persist && !localStorage.getItem(STORE_KEY)) save();
   const nextId = (prefix: string) => `${prefix}-${(state.counter += 1)}`;
 
   // Пароль мока наружу не отдаётся
@@ -262,7 +275,7 @@ export function createMockStaff({
 
   const auth: StaffAuthApi = {
     async login({ email, password, remember }) {
-      await delay(latencyMs);
+      await begin();
       const key = email.trim().toLowerCase();
       if (key === 'offline@uk.ru') throw new ApiError('network');
       if (key === 'limited@uk.ru') throw new ApiError('rate_limited', { retryAfterSec: 120 });
@@ -280,7 +293,7 @@ export function createMockStaff({
     },
 
     async register({ name, email, phone, password, company }) {
-      await delay(latencyMs);
+      await begin();
       const key = email.trim().toLowerCase();
       if (key === 'offline@uk.ru') throw new ApiError('network');
       if (key === 'taken@uk.ru' || emailTaken(key)) throw new ApiError('email_taken');
@@ -299,7 +312,7 @@ export function createMockStaff({
     },
 
     async refresh() {
-      await delay(Math.min(latencyMs, 100));
+      await begin(Math.min(latencyMs, 100));
       const id = readFlag(localStorage) ?? readFlag(sessionStorage);
       const member = state.members.find((item) => item.id === id);
       // Отключённый или неизвестный сотрудник (в том числе запись прежнего формата) — вход заново
@@ -307,13 +320,15 @@ export function createMockStaff({
       return sessionFor(member);
     },
 
-    async logout() {
-      await delay(Math.min(latencyMs, 100));
+    async logout(accessToken) {
+      await begin(Math.min(latencyMs, 100));
+      // Токен выхода отзывается: серверный образец не оставляет живых сессий
+      if (accessToken) tokens.delete(accessToken);
       clearFlag();
     },
 
     async forgotPassword({ email }) {
-      await delay(latencyMs);
+      await begin();
       const key = email.trim().toLowerCase();
       if (key === 'offline@uk.ru') throw new ApiError('network');
       if (key === 'limited@uk.ru') throw new ApiError('rate_limited', { retryAfterSec: 120 });
@@ -321,7 +336,7 @@ export function createMockStaff({
     },
 
     async resetPassword({ token }) {
-      await delay(latencyMs);
+      await begin();
       if (token !== 'demo' || usedTokens.has(token)) throw new ApiError('invalid_token');
       usedTokens.add(token);
     },
@@ -329,7 +344,7 @@ export function createMockStaff({
 
   const admin: StaffAdminApi = {
     async listAccessRequests(status) {
-      await delay(latencyMs);
+      await begin();
       requireStaffManage();
       const items = state.requests
         .filter((item) => item.status === status)
@@ -339,7 +354,7 @@ export function createMockStaff({
     },
 
     async approveAccessRequest(id, { role, scope, notify }) {
-      await delay(latencyMs);
+      await begin();
       requireStaffManage();
       const index = state.requests.findIndex((item) => item.id === id);
       // Заявки нет среди ожидающих и отклонённых: её уже подтвердил другой администратор
@@ -364,7 +379,7 @@ export function createMockStaff({
     },
 
     async rejectAccessRequest(id) {
-      await delay(latencyMs);
+      await begin();
       requireStaffManage();
       const request = state.requests.find((item) => item.id === id);
       if (!request) throw new ApiError('already_processed', { fields: { status: 'approved' } });
@@ -376,7 +391,7 @@ export function createMockStaff({
     },
 
     async listMembers({ query, role, houseId, status }: MemberFilters = {}) {
-      await delay(latencyMs);
+      await begin();
       requireStaffManage();
       const needle = query?.trim().toLowerCase();
       return state.members
@@ -391,7 +406,7 @@ export function createMockStaff({
     },
 
     async updateMember(id, patch) {
-      await delay(latencyMs);
+      await begin();
       const me = requireStaffManage();
       const member = state.members.find((item) => item.id === id);
       if (!member) throw new ApiError('not_found');
@@ -407,6 +422,12 @@ export function createMockStaff({
       if (patch.scope && !patch.scope.all && patch.scope.houseIds.length === 0) {
         throw new ApiError('validation', { fields: { scope: 'Выберите хотя бы один дом или участок' } });
       }
+      if (patch.role && !ROLES.some((item) => item.key === patch.role)) {
+        throw new ApiError('validation', { fields: { role: 'Неизвестная роль' } });
+      }
+      if (patch.status && !STATUSES.includes(patch.status)) {
+        throw new ApiError('validation', { fields: { status: 'Неизвестный статус' } });
+      }
       if (patch.role) member.role = patch.role;
       if (patch.scope) member.scope = clone(patch.scope);
       if (patch.status) member.status = patch.status;
@@ -414,14 +435,17 @@ export function createMockStaff({
     },
 
     async getRoles() {
-      await delay(latencyMs);
+      await begin();
       requireStaffManage();
       return clone(state.matrix);
     },
 
     async saveRoles(matrix) {
-      await delay(latencyMs);
+      await begin();
       requireStaffManage();
+      // Серверу нужна полная матрица: все роли и только известные права
+      const complete = ROLES.every((role) => Array.isArray(matrix[role.key]) && matrix[role.key].every((p) => ALL.includes(p)));
+      if (!complete) throw new ApiError('validation', { fields: { matrix: 'Неполная матрица прав' } });
       if (!matrix.manager.includes('staff.manage')) {
         throw new ApiError('validation', { fields: { matrix: 'Руководитель должен управлять сотрудниками' } });
       }
@@ -430,7 +454,7 @@ export function createMockStaff({
     },
 
     async listHouses() {
-      await delay(latencyMs);
+      await begin();
       requireStaffManage();
       return clone(HOUSES);
     },

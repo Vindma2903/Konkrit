@@ -8,6 +8,9 @@ defineProps<{ label: string; actions: MenuAction[] }>();
 const emit = defineEmits<{ select: [key: string] }>();
 
 const open = ref(false);
+/** Меню рисуется поверх карточки таблицы (fixed), чтобы прокрутка карточки его не обрезала. */
+const place = ref<{ top?: number; bottom?: number; right: number }>({ right: 0 });
+const MENU_HEIGHT = 190;
 const root = ref<HTMLElement | null>(null);
 const button = ref<HTMLButtonElement | null>(null);
 
@@ -21,15 +24,32 @@ function onOutside(event: MouseEvent) {
 
 async function toggle() {
   if (open.value) return close(true);
+  const rect = button.value?.getBoundingClientRect();
+  if (rect) {
+    const right = Math.max(8, window.innerWidth - rect.right);
+    place.value =
+      rect.bottom + MENU_HEIGHT > window.innerHeight
+        ? { bottom: window.innerHeight - rect.top + 4, right }
+        : { top: rect.bottom + 4, right };
+  }
   open.value = true;
   await nextTick();
   items()[0]?.focus();
   document.addEventListener('mousedown', onOutside);
+  // положение считается один раз: при прокрутке и изменении окна меню закрывается
+  window.addEventListener('scroll', onMove, true);
+  window.addEventListener('resize', onMove);
+}
+
+function onMove() {
+  close(false);
 }
 
 function close(returnFocus: boolean) {
   open.value = false;
   document.removeEventListener('mousedown', onOutside);
+  window.removeEventListener('scroll', onMove, true);
+  window.removeEventListener('resize', onMove);
   if (returnFocus) button.value?.focus();
 }
 
@@ -56,7 +76,11 @@ function choose(key: string) {
   emit('select', key);
 }
 
-onBeforeUnmount(() => document.removeEventListener('mousedown', onOutside));
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', onOutside);
+  window.removeEventListener('scroll', onMove, true);
+  window.removeEventListener('resize', onMove);
+});
 </script>
 
 <template>
@@ -72,7 +96,7 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onOutside));
     >
       <Icon name="dots" />
     </button>
-    <div v-if="open" class="menu__list" role="menu" :aria-label="label">
+    <div v-if="open" class="menu__list" role="menu" :aria-label="label" :style="{ top: place.top !== undefined ? `${place.top}px` : 'auto', bottom: place.bottom !== undefined ? `${place.bottom}px` : 'auto', right: `${place.right}px` }">
       <button
         v-for="action in actions"
         :key="action.key"

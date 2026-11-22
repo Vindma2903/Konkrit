@@ -72,8 +72,10 @@ async function save() {
   saving.value = true;
   saveError.value = '';
   try {
-    await adminCall(() => getAdminApi().saveRoles(draft.value!));
-    saved.value = clone(draft.value);
+    // Сохраняем снимок: правка, сделанная во время запроса, не должна считаться сохранённой
+    const snapshot = clone(draft.value);
+    await adminCall(() => getAdminApi().saveRoles(snapshot));
+    saved.value = snapshot;
     toast.show('Права сохранены');
     // Свои права могли измениться: меню и доступ обновляются сразу
     void session.reload();
@@ -149,7 +151,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload)
                 <input
                   type="checkbox"
                   :checked="has(role.key, permission.key)"
-                  :disabled="locked(role.key, permission.key)"
+                  :disabled="saving || locked(role.key, permission.key)"
                   :aria-label="`${permission.title}: ${role.title}`"
                   :aria-describedby="locked(role.key, permission.key) ? 'locked-hint' : undefined"
                   @change="toggle(role.key, permission.key, ($event.target as HTMLInputElement).checked)"

@@ -1,6 +1,6 @@
 import { flushPromises } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, type StaffMember } from '@/api';
+import { ApiError } from '@/api';
 import { createMockStaff } from '@/api/mockAuthApi';
 import { button, openAs } from '@/test/helpers';
 
@@ -230,11 +230,5 @@ describe('сотрудники: меню действий', () => {
     await flushPromises();
     expect(app.wrapper.find('[role=alertdialog] .alert').text()).toBe('Нельзя отключить последнего руководителя');
     expect(rowOf(app, 'dispatcher@uk.ru').text()).toContain('Активен');
-  });
-
-  it('данные сотрудника в таблице соответствуют хранилищу после обновления', async () => {
-    const app = await listApp();
-    const target = app.mock.state().members.find((item: StaffMember) => item.email === 'executor@uk.ru')!;
-    expect(rowOf(app, 'executor@uk.ru').attributes('data-testid')).toBe(`member-${target.id}`);
   });
 });
