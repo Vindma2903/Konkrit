@@ -39,10 +39,7 @@ export function SelectField({
         accessibilityValue={{ text: value ?? placeholder }}
         onPress={onPress}
         testID={testID}
-        style={[
-          styles.box,
-          error ? { borderWidth: 1.5, borderColor: colors.error } : null,
-        ]}
+        style={[styles.box, error ? { borderWidth: 1.5, borderColor: colors.error } : null]}
       >
         <View style={styles.valueRow}>
           {leftIcon ? <Icon name={leftIcon} size={20} color={colors.accentText} /> : null}

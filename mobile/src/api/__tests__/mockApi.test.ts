@@ -4,7 +4,11 @@ import { ApiError } from '../types';
 describe('mockApi', () => {
   it('принимает тестовый код и сообщает, что привязки ещё нет', async () => {
     const api = createMockApi({ delayMs: 0 });
-    const result = await api.verifyCode({ channel: 'phone', value: '+79990000000', code: MOCK_CODE });
+    const result = await api.verifyCode({
+      channel: 'phone',
+      value: '+79990000000',
+      code: MOCK_CODE,
+    });
     expect(result.hasResidency).toBe(false);
     expect(result.user.phone).toBe('+79990000000');
   });

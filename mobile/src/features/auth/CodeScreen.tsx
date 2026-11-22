@@ -189,7 +189,12 @@ export function CodeScreen() {
 
 const styles = StyleSheet.create({
   sent: { gap: 8 },
-  valueRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   value: { flexShrink: 1 },
   codeBlock: { gap: 12 },
   timer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
