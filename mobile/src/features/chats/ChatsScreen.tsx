@@ -16,9 +16,14 @@ export const conversationsKey = ['conversations'];
 /** Чаты дома от недавней активности к давней; чаты без сообщений в конце. */
 function sortByActivity(items: Conversation[]): Conversation[] {
   return [...items].sort((a, b) => {
-    const left = a.last ? Date.parse(a.last.at) : Number.NEGATIVE_INFINITY;
-    const right = b.last ? Date.parse(b.last.at) : Number.NEGATIVE_INFINITY;
-    return right - left;
+    // Чат без сообщений или с неверной датой — в конце; порядок остаётся последовательным
+    const time = (item: Conversation) => {
+      const value = item.last ? Date.parse(item.last.at) : Number.NaN;
+      return Number.isFinite(value) ? value : Number.NEGATIVE_INFINITY;
+    };
+    const left = time(a);
+    const right = time(b);
+    return left === right ? 0 : right > left ? 1 : -1;
   });
 }
 

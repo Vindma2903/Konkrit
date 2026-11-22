@@ -13,6 +13,7 @@ import {
   channelMessagesKey,
   chatChannel,
   listChannelMessages,
+  useChatOutbox,
 } from '../requests/chat/outbox';
 import { conversationsKey } from './ChatsScreen';
 import { conversationIcons, isGroupChat } from './conversationUi';
@@ -56,12 +57,17 @@ export function ConversationScreen() {
     const key = `${chatId}:${lastId}`;
     if (markedFor.current === key) return;
     markedFor.current = key;
+    // Ответ после выхода из аккаунта относится к прежнему жителю и игнорируется
+    const { epoch } = useChatOutbox.getState();
     getApi()
       .markChatRead(chatId)
       .then(() => {
+        if (useChatOutbox.getState().epoch !== epoch) return;
         queryClient.setQueryData<Conversation[]>(conversationsKey, (list) =>
           list?.map((item) => (item.id === chatId ? { ...item, unread: false } : item)),
         );
+        // Обновление списка, ушедшее раньше отметки, могло вернуть «непрочитано»: пересчитываем
+        void queryClient.invalidateQueries({ queryKey: conversationsKey });
       })
       .catch(() => {
         // не отметилось — попробуем при следующем сообщении или открытии

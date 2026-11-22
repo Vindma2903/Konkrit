@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { ApiError, setApi, type ApiClient, type User } from '@/api';
@@ -146,13 +146,13 @@ describe('вкладка «Профиль»', () => {
     await renderWithProviders(<ProfileScreen />);
     expect(await screen.findByTestId('profile-name')).toHaveTextContent('Первый Житель');
 
-    await useSessionStore.getState().signOut();
+    // Житель сменился без выхода и без очистки кэша: профиль определяется ключом с идентификатором
     current = 'user-2';
-    signIn({ id: 'user-2', phone: '+79007654321' });
-    await renderWithProviders(<ProfileScreen />);
+    await act(async () => signIn({ id: 'user-2', phone: '+79007654321' }));
 
-    expect(await screen.findByTestId('profile-name')).toHaveTextContent('Второй Житель');
+    expect(await screen.findByText('Второй Житель')).toBeOnTheScreen();
     expect(screen.queryByText('Первый Житель')).toBeNull();
+    expect(queryClient.getQueryData(['profile', 'user-1'])).toEqual({ name: 'Первый Житель' });
   });
 });
 

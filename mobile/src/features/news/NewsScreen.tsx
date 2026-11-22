@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -31,15 +31,33 @@ export function NewsScreen() {
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
-  const { refetch } = query;
+  // Колбэк обновления не должен меняться при смене раздела: useFocusEffect вызвал бы его заново.
+  const latest = useRef({ kind, refetch: query.refetch });
+  useEffect(() => {
+    latest.current = { kind, refetch: query.refetch };
+  });
 
-  /** Обновление с первой страницы: загруженные дальше страницы отбрасываем. */
+  /**
+   * Обновление с первой страницы. Свежая первая страница подменяет весь список только после
+   * успешного ответа: при сбое загруженные карточки остаются.
+   */
   const refreshFirstPage = useCallback(async () => {
-    queryClient.setQueryData<InfiniteData<NewsPage, string | null>>(['news', kind], (data) =>
-      data ? { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) } : data,
-    );
-    await refetch();
-  }, [kind, queryClient, refetch]);
+    const { kind: current, refetch } = latest.current;
+    const key = ['news', current];
+    if (!queryClient.getQueryData(key)) {
+      await refetch();
+      return;
+    }
+    try {
+      const first = await getApi().listNews({ kind: current, cursor: null });
+      queryClient.setQueryData<InfiniteData<NewsPage, string | null>>(key, {
+        pages: [first],
+        pageParams: [null],
+      });
+    } catch {
+      // сбой обновления: прежний список остаётся на экране
+    }
+  }, [queryClient]);
 
   // При возврате на вкладку список обновляется (первый показ уже загружает запрос).
   const firstFocus = useRef(true);
@@ -117,7 +135,7 @@ export function NewsScreen() {
           Новости
         </Text>
       </View>
-      <View style={styles.switcher} accessibilityRole="tablist">
+      <View style={styles.switcher}>
         {kinds.map((item) => (
           <Chip
             key={item.key}

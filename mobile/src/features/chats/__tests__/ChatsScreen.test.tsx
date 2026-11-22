@@ -79,6 +79,25 @@ describe('вкладка «Чат»: список чатов', () => {
     expect(ids).toEqual(['conversation-new', 'conversation-old', 'conversation-empty']);
   });
 
+  it('неверная дата сообщения не ломает порядок: такой чат уходит в конец', async () => {
+    const now = Date.now();
+    setApi(
+      api({
+        listConversations: async () => [
+          conversation({ id: 'broken', last: { authorName: 'А Б', text: 'x', at: 'не дата' } }),
+          conversation({ id: 'a', last: { authorName: 'В Г', text: 'y', at: new Date(now - 5e6).toISOString() } }),
+          conversation({ id: 'b', last: { authorName: 'Д Е', text: 'z', at: new Date(now - 1e3).toISOString() } }),
+        ],
+      }),
+    );
+    await renderWithProviders(<ChatsScreen />);
+    await screen.findByTestId('conversation-b');
+    const ids = screen
+      .getAllByTestId(/^conversation-(broken|a|b)$/)
+      .map((node) => node.props.testID as string);
+    expect(ids).toEqual(['conversation-b', 'conversation-a', 'conversation-broken']);
+  });
+
   it('чат без сообщений: «Сообщений пока нет», точки нет', async () => {
     setApi(api({ listConversations: async () => [conversation({ id: 'quiet', title: 'Тихий', unread: false })] }));
     await renderWithProviders(<ChatsScreen />);

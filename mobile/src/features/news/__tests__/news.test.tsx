@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
 import { Share } from 'react-native';
 
 import { ApiError, setApi, type ApiClient } from '@/api';
@@ -163,6 +164,53 @@ describe('вкладка «Новости»', () => {
 
     await fireEvent.press(screen.getByTestId('news-retry'));
     expect(await screen.findByText('Итоги общего собрания собственников')).toBeOnTheScreen();
+  });
+
+  it('смена раздела не обрезает загруженные страницы', async () => {
+    // Как в expo-router: эффект фокуса перезапускается при смене колбэка
+    jest.mocked(useFocusEffect).mockImplementation((callback) => {
+      useEffect(() => callback(), [callback]);
+    });
+    try {
+      const listNews = jest.fn(createMockApi({ delayMs: 0, pageSize: 2 }).listNews);
+      setApi(api({ listNews }, 2));
+      await renderWithProviders(<NewsScreen />);
+      await screen.findByText('Плановое отключение горячей воды');
+      await fireEvent(screen.getByTestId('news-list'), 'endReached');
+      await screen.findByText('Итоги общего собрания собственников');
+      expect(screen.getAllByTestId(/^news-card-news-\d$/)).toHaveLength(4);
+
+      await fireEvent.press(screen.getByTestId('news-kind-announcement'));
+      await screen.findByText('Субботник во дворе');
+      await fireEvent.press(screen.getByTestId('news-kind-news'));
+      await flush();
+
+      expect(screen.getAllByTestId(/^news-card-news-\d$/)).toHaveLength(4);
+      // Карточки не пропадали: список только фоново сверяется с сервером (отброшенных страниц нет)
+      expect(screen.queryByTestId('news-loading')).toBeNull();
+      expect(listNews.mock.calls.some(([input]) => input.kind === 'news' && input.cursor === '2')).toBe(true);
+    } finally {
+      jest.mocked(useFocusEffect).mockImplementation(() => undefined);
+    }
+  });
+
+  it('сбой обновления жестом оставляет загруженные страницы', async () => {
+    const real = createMockApi({ delayMs: 0, pageSize: 2 });
+    const listNews = jest
+      .fn()
+      .mockImplementationOnce(real.listNews)
+      .mockImplementationOnce(real.listNews)
+      .mockRejectedValue(new ApiError('network'));
+    setApi(api({ listNews }, 2));
+    await renderWithProviders(<NewsScreen />);
+    await screen.findByText('Плановое отключение горячей воды');
+    await fireEvent(screen.getByTestId('news-list'), 'endReached');
+    await screen.findByText('Итоги общего собрания собственников');
+
+    await fireEvent(screen.getByTestId('news-list'), 'refresh');
+    await flush();
+
+    expect(screen.getAllByTestId(/^news-card-news-\d$/)).toHaveLength(4);
   });
 
   it('«потянуть вниз» и возврат на вкладку обновляют список, но не при первом показе', async () => {

@@ -227,6 +227,31 @@ describe('переписка: прочитанное и опрос', () => {
     expect(markChatRead).toHaveBeenCalledTimes(2);
   });
 
+  it('запоздавшая отметка после выхода из аккаунта не трогает список следующего жителя', async () => {
+    open('house-all');
+    let release: () => void = () => undefined;
+    const markChatRead = jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    setApi(api({ markChatRead }));
+    await renderWithProviders(<ConversationScreen />);
+    await screen.findByText('Мария Орлова');
+    await waitFor(() => expect(markChatRead).toHaveBeenCalled());
+
+    resetOutbox(); // выход из аккаунта
+    const next: Conversation[] = [
+      { id: 'house-all', kind: 'house', title: 'Весь дом', last: null, unread: true },
+    ];
+    queryClient.setQueryData(conversationsKey, next);
+    await act(async () => release());
+    await flush();
+
+    expect(queryClient.getQueryData<Conversation[]>(conversationsKey)?.[0]?.unread).toBe(true);
+  });
+
   it('опрос раз в 5 секунд, пока экран на виду, и прекращается после ухода', async () => {
     const mock = createMockApi({ delayMs: 0 });
     // Снимки берём до поддельных таймеров: мок отвечает через таймер.
