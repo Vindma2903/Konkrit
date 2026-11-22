@@ -7,6 +7,7 @@ import { colors, radius } from '@/theme';
 import { Button, Icon, Screen, Text } from '@/ui';
 
 import { useCreatedRequest } from './createdRequestStore';
+import { StatusBadge } from './StatusBadge';
 
 /** Экран «Заявка создана» (макет S9). Данные берёт из итога последней отправки. */
 export function RequestSentScreen() {
@@ -70,11 +71,7 @@ export function RequestSentScreen() {
             <Text weight={600} size={12} color={colors.textMuted}>
               {formatDateTime(summary.createdAt)}
             </Text>
-            <View style={styles.status}>
-              <Text weight={700} size={12} color="#1F4E9E">
-                Новая
-              </Text>
-            </View>
+            <StatusBadge status="new" />
           </View>
           <Text weight={700} size={16}>
             {summary.categoryName}
@@ -111,10 +108,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  status: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    backgroundColor: '#E3EEFF',
-  },
 });
