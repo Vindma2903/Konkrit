@@ -10,7 +10,8 @@ import { getPickers, type PickResult } from '../pickers';
 import { bubbleFromMessage, ChatBubble } from './ChatBubble';
 import { ChatInputBar } from './ChatInputBar';
 import { runPick } from './pickFlow';
-import { useRequestChat, type ChatItem } from './useRequestChat';
+import { requestChannel } from './outbox';
+import { useChannelChat, type ChatItem } from './useChannelChat';
 
 type ChatTabProps = {
   requestId: string;
@@ -20,8 +21,8 @@ type ChatTabProps = {
 
 /** Вкладка «Чат»: переписка, строка ввода со скрепкой и отправка (макет «Карточка заявки»). */
 export function ChatTab({ requestId, active }: ChatTabProps) {
-  const { items, isPending, isError, refetch, sendText, sendFile, retry } = useRequestChat(
-    requestId,
+  const { items, isPending, isError, refetch, sendText, sendFile, retry } = useChannelChat(
+    requestChannel(requestId),
     active,
   );
   const [sheetOpen, setSheetOpen] = useState(false);
