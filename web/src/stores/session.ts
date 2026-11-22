@@ -1,6 +1,13 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import { ApiError, getApi, type LoginInput, type StaffSession } from '@/api';
+import { computed, ref } from 'vue';
+import {
+  ApiError,
+  getApi,
+  setTokenProvider,
+  type LoginInput,
+  type Permission,
+  type StaffSession,
+} from '@/api';
 
 /** Сессия сотрудника. Access-токен хранится только в памяти, refresh — в HttpOnly-куке. */
 export const useSessionStore = defineStore('session', () => {
@@ -9,6 +16,12 @@ export const useSessionStore = defineStore('session', () => {
   /** Пользователь сам нажал «Выйти»: переход на вход делает экран, а не наблюдатель. */
   const explicitLogout = ref(false);
   let restoring: Promise<void> | null = null;
+
+  // Клиент администрирования берёт токен из сессии, не зная о хранилище
+  setTokenProvider(() => session.value?.accessToken ?? null);
+
+  const permissions = computed<readonly Permission[]>(() => session.value?.user.permissions ?? []);
+  const can = (permission: Permission) => permissions.value.includes(permission);
 
   async function login(input: LoginInput) {
     session.value = await getApi().login(input);
@@ -53,10 +66,23 @@ export const useSessionStore = defineStore('session', () => {
     session.value = null;
   }
 
+  /**
+   * Обновить роль и права без повторного входа (после отказа по праву и при возврате на вкладку).
+   * Если сервер больше не признаёт сессию (например, доступ отключён), она сбрасывается.
+   */
+  async function reload() {
+    if (!session.value) return;
+    try {
+      session.value = await getApi().refresh();
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'unauthorized') session.value = null;
+    }
+  }
+
   /** Сервер отказал по токену и обновить его не удалось. */
   function expire() {
     session.value = null;
   }
 
-  return { session, restored, explicitLogout, login, restore, logout, expire };
+  return { session, restored, explicitLogout, permissions, can, login, restore, logout, reload, expire };
 });

@@ -39,7 +39,7 @@ describe('сессия', () => {
     const refresh = vi
       .fn<StaffAuthApi['refresh']>()
       .mockRejectedValueOnce(new ApiError('network'))
-      .mockResolvedValueOnce({ accessToken: 't', user: { id: '1', name: 'Анна Соколова', role: 'dispatcher' } });
+      .mockResolvedValueOnce({ accessToken: 't', user: { id: '1', name: 'Анна Соколова', role: 'dispatcher', permissions: [] } });
     setApi(api({ refresh }));
     const store = useSessionStore();
     await store.restore();

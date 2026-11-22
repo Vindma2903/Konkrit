@@ -16,6 +16,7 @@ tags:
   - name: requests
   - name: community
   - name: staff-auth
+  - name: staff-admin
 paths:
   /auth/code/request:
     post:
@@ -523,6 +524,154 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /staff/access-requests:
+    get:
+      tags: [staff-admin]
+      summary: Заявки сотрудников на доступ (право staff.manage)
+      parameters:
+        - { name: status, in: query, required: true, schema: { type: string, enum: [pending, rejected] } }
+      responses:
+        '200':
+          description: Заявки и число ожидающих
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccessRequestsPage' }
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: 'forbidden: нет права staff.manage'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /staff/access-requests/{id}/approve:
+    post:
+      tags: [staff-admin]
+      summary: Подтвердить доступ с ролью и областью работы
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApproveAccess' }
+      responses:
+        '204':
+          description: Доступ открыт; заявка стала сотрудником
+        '409':
+          description: 'already_processed: заявку уже обработали (в fields.status — текущее состояние)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: 'validation: например, не выбран ни один дом (fields.scope)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /staff/access-requests/{id}/reject:
+    post:
+      tags: [staff-admin]
+      summary: Отклонить заявку на доступ
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '204':
+          description: Заявка отклонена
+        '409':
+          description: already_processed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /staff/members:
+    get:
+      tags: [staff-admin]
+      summary: Сотрудники с поиском и фильтрами
+      parameters:
+        - { name: query, in: query, required: false, schema: { type: string } }
+        - { name: role, in: query, required: false, schema: { $ref: '#/components/schemas/StaffRole' } }
+        - { name: houseId, in: query, required: false, schema: { type: string } }
+        - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/MemberStatus' } }
+      responses:
+        '200':
+          description: Сотрудники
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StaffMember' }
+  /staff/members/{id}:
+    patch:
+      tags: [staff-admin]
+      summary: Изменить роль, область работы или статус сотрудника
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MemberPatch' }
+      responses:
+        '204':
+          description: Изменено
+        '404':
+          description: not_found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: 'last_manager: нельзя отключить или понизить последнего руководителя'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422':
+          description: 'validation: например, нельзя отключить себя (fields.status)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /staff/roles:
+    get:
+      tags: [staff-admin]
+      summary: Матрица прав «функция × роль»
+      responses:
+        '200':
+          description: Права каждой роли
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RolesMatrix' }
+    put:
+      tags: [staff-admin]
+      summary: Сохранить матрицу прав; применяется ко всем сотрудникам роли
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [matrix]
+              properties:
+                matrix: { $ref: '#/components/schemas/RolesMatrix' }
+      responses:
+        '204':
+          description: Сохранено
+        '422':
+          description: 'validation: у руководителя нельзя снять staff.manage (fields.matrix)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /staff/houses:
+    get:
+      tags: [staff-admin]
+      summary: Дома и участки для выбора области работы
+      responses:
+        '200':
+          description: Дома и участки
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StaffHouse' }
 components:
   securitySchemes:
     bearerAuth:
@@ -781,11 +930,12 @@ components:
         accessToken: { type: string }
         user:
           type: object
-          required: [id, name, role]
+          required: [id, name, role, permissions]
           properties:
             id: { type: string }
             name: { type: string }
-            role: { type: string, enum: [dispatcher, employee, admin] }
+            role: { $ref: '#/components/schemas/StaffRole' }
+            permissions: { type: array, items: { $ref: '#/components/schemas/Permission' } }
     StaffRegister:
       type: object
       required: [name, company, email, phone, password, consent]
@@ -819,11 +969,92 @@ components:
       properties:
         token: { type: string }
         password: { type: string, minLength: 8 }
+    StaffRole:
+      type: string
+      enum: [dispatcher, engineer, executor, manager]
+      description: Диспетчер, Инженер/куратор, Исполнитель, Руководитель (администратор УК)
+    Permission:
+      type: string
+      enum:
+        - requests.create
+        - requests.assign
+        - requests.status
+        - acts.use
+        - acts.templates
+        - analytics.view
+        - directories.manage
+        - staff.manage
+        - contractors.manage
+    MemberStatus:
+      type: string
+      enum: [active, vacation, disabled]
+    StaffScope:
+      type: object
+      required: [all, houseIds]
+      properties:
+        all: { type: boolean }
+        houseIds: { type: array, items: { type: string } }
+    StaffHouse:
+      type: object
+      required: [id, title]
+      properties:
+        id: { type: string }
+        title: { type: string }
+    AccessRequest:
+      type: object
+      required: [id, name, email, phone, company, createdAt, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        company: { type: string }
+        createdAt: { type: string, format: date-time }
+        status: { type: string, enum: [pending, rejected] }
+    AccessRequestsPage:
+      type: object
+      required: [items, pendingCount]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AccessRequest' } }
+        pendingCount: { type: integer, minimum: 0 }
+    ApproveAccess:
+      type: object
+      required: [role, scope, notify]
+      properties:
+        role: { $ref: '#/components/schemas/StaffRole' }
+        scope: { $ref: '#/components/schemas/StaffScope' }
+        notify: { type: boolean, description: Отправить сотруднику письмо, что доступ открыт }
+    StaffMember:
+      type: object
+      required: [id, name, email, phone, role, scope, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        role: { $ref: '#/components/schemas/StaffRole' }
+        scope: { $ref: '#/components/schemas/StaffScope' }
+        status: { $ref: '#/components/schemas/MemberStatus' }
+    MemberPatch:
+      type: object
+      properties:
+        role: { $ref: '#/components/schemas/StaffRole' }
+        scope: { $ref: '#/components/schemas/StaffScope' }
+        status: { $ref: '#/components/schemas/MemberStatus' }
+    RolesMatrix:
+      type: object
+      description: Для каждой роли — список прав
+      required: [dispatcher, engineer, executor, manager]
+      properties:
+        dispatcher: { type: array, items: { $ref: '#/components/schemas/Permission' } }
+        engineer: { type: array, items: { $ref: '#/components/schemas/Permission' } }
+        executor: { type: array, items: { $ref: '#/components/schemas/Permission' } }
+        manager: { type: array, items: { $ref: '#/components/schemas/Permission' } }
     Error:
       type: object
       required: [code]
       properties:
-        code: { type: string, description: 'Например invalid_code, validation, rate_limited' }
+        code: { type: string, description: 'Например invalid_code, validation, rate_limited, forbidden, already_processed, last_manager' }
         message: { type: string }
         retryAfterSec: { type: integer }
         fields:

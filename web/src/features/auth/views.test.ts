@@ -79,7 +79,7 @@ describe('вход', () => {
     await flushPromises();
     expect(wrapper.text()).toContain('Заявка на доступ отправлена администратору «УК «Тест-Сервис»»');
     expect(wrapper.text()).toContain('pending@uk.ru');
-    expect(wrapper.find('a[href="mailto:admin@uk.ru"]').exists()).toBe(true);
+    expect(wrapper.find('a[href="mailto:manager@uk.ru"]').exists()).toBe(true);
   });
 
   it('отклонён и заблокирован: свои сообщения', async () => {
