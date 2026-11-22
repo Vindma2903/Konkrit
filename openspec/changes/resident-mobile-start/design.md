@@ -21,12 +21,10 @@
 ```
 mobile/
   src/
-    app/                    маршруты expo-router (по рекомендации Expo — в src/app)
-      (auth)/login.tsx      телефон/почта (один экран, переключатель способа)
-      (auth)/code.tsx       код из SMS / из письма (параметр channel)
-      (onboarding)/choose-home.tsx
-      (onboarding)/apartment.tsx
-      requests/new.tsx      «Новая заявка»
+    app/                    маршруты expo-router (по рекомендации Expo — в src/app), плоские:
+                            login, code, choose-home, apartment, residency-sent, home,
+                            requests/new, requests/sent; защита маршрутов — Stack.Protected
+                            в _layout.tsx (по наличию токенов)
     theme/                  токены цвета, типографика, радиусы, отступы
     ui/                     Button, TextField, OtpInput, SegmentedTabs, Chip,
                             SelectableCard, RadioRow, ScreenHeader, FieldError, Icon
