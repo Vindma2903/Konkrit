@@ -1,4 +1,5 @@
 import { categories, classifyCategory } from './categories';
+import { createMockRequests, deriveTitle, type UploadedFile } from './mockRequests';
 import {
   ApiError,
   type ApiClient,
@@ -37,6 +38,8 @@ const houses: readonly House[] = [
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export type MockApiOptions = {
+  /** Размер страницы списка заявок (в тестах уменьшают, чтобы проверить дозагрузку). */
+  pageSize?: number;
   /** Задержка ответа, мс. В тестах — 0. */
   delayMs?: number;
   /** Каждая N-я загрузка вложения падает (чтобы вручную увидеть состояние S7c). */
@@ -44,12 +47,19 @@ export type MockApiOptions = {
 };
 
 /** Мок-реализация ApiClient: данные в памяти, без сети. */
-export function createMockApi({ delayMs = 400, failUploadEvery }: MockApiOptions = {}): ApiClient {
+export function createMockApi({
+  delayMs = 400,
+  failUploadEvery,
+  pageSize,
+}: MockApiOptions = {}): ApiClient {
   const residencies: Residency[] = [];
   let counter = 0;
   let uploads = 0;
   let requests = 0;
   const created = new Map<string, CreateRequestResult>();
+  const uploaded = new Map<string, UploadedFile>();
+  const requestsStore = createMockRequests({ pageSize });
+  const lookupUpload = (id: string) => uploaded.get(id);
   const nextId = (prefix: string) => `${prefix}-${(counter += 1)}`;
 
   return {
@@ -120,6 +130,38 @@ export function createMockApi({ delayMs = 400, failUploadEvery }: MockApiOptions
         answerWithinMin: 15,
       };
       created.set(input.clientRequestId, result);
+      const residency = residencies.find((item) => item.id === input.residencyId);
+      requestsStore.add(
+        {
+          id: result.id,
+          number: result.number,
+          createdAt: result.createdAt,
+          title: deriveTitle(input.description),
+          categoryName: categories.find((item) => item.id === input.categoryId)?.name ?? 'Другое',
+          status: 'new',
+          executor: null,
+          curator: null,
+          address: residency ? `${residency.address}, кв. ${residency.apartment}` : '',
+        },
+        input.attachmentIds.flatMap((attachmentId) => {
+          const file = uploaded.get(attachmentId);
+          return file
+            ? [
+                {
+                  id: attachmentId,
+                  kind: file.mimeType?.startsWith('video/')
+                    ? ('video' as const)
+                    : file.mimeType?.startsWith('image/')
+                      ? ('image' as const)
+                      : ('document' as const),
+                  name: file.name,
+                  url: file.uri,
+                  size: file.size,
+                },
+              ]
+            : [];
+        }),
+      );
       return result;
     },
 
@@ -128,7 +170,7 @@ export function createMockApi({ delayMs = 400, failUploadEvery }: MockApiOptions
       return [...categories];
     },
 
-    async uploadAttachment({ signal, onProgress }: UploadAttachmentInput) {
+    async uploadAttachment({ file, signal, onProgress }: UploadAttachmentInput) {
       uploads += 1;
       const fails = failUploadEvery !== undefined && uploads % failUploadEvery === 0;
       const steps = 10;
@@ -139,7 +181,39 @@ export function createMockApi({ delayMs = 400, failUploadEvery }: MockApiOptions
         if (fails && step === 5) throw new ApiError('network');
         onProgress?.(step / steps);
       }
-      return { id: nextId('attachment') };
+      const id = nextId('attachment');
+      uploaded.set(id, file);
+      return { id };
+    },
+
+    async listRequests(input) {
+      await wait(delayMs);
+      return requestsStore.list(input);
+    },
+
+    async getRequest(id) {
+      await wait(delayMs);
+      return requestsStore.get(id);
+    },
+
+    async listMessages(id) {
+      await wait(delayMs);
+      return requestsStore.messages(id);
+    },
+
+    async sendMessage(id, input) {
+      await wait(delayMs);
+      return requestsStore.send(id, input, lookupUpload);
+    },
+
+    async listHistory(id) {
+      await wait(delayMs);
+      return requestsStore.history(id);
+    },
+
+    async listFiles(id) {
+      await wait(delayMs);
+      return requestsStore.files(id);
     },
   };
 }

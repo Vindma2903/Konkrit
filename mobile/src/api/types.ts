@@ -83,6 +83,66 @@ export type UploadAttachmentInput = {
 };
 export type UploadAttachmentResult = { id: string };
 
+export type RequestStatus = 'new' | 'in_progress' | 'waiting' | 'completed' | 'cancelled';
+
+export type Person = { name: string; position: string };
+
+export type RequestSummary = {
+  id: string;
+  number: number;
+  /** Заголовок заявки: сервер выводит его из описания. */
+  title: string;
+  categoryName: string;
+  status: RequestStatus;
+  executor: Person | null;
+  createdAt: string;
+};
+
+export type RequestDetails = RequestSummary & {
+  address: string;
+  curator: Person | null;
+};
+
+export type ListRequestsInput = {
+  /** Отбор по статусам; без него — все заявки. */
+  statuses?: RequestStatus[];
+  /** Курсор следующей страницы из прошлого ответа. */
+  cursor?: string | null;
+};
+export type RequestsPage = { items: RequestSummary[]; nextCursor: string | null };
+
+export type MessageAuthorRole = 'resident' | 'executor' | 'curator' | 'dispatcher';
+
+export type MessageAttachment = {
+  id: string;
+  kind: 'image' | 'video' | 'document';
+  name: string;
+  url: string;
+  size?: number;
+};
+
+export type ChatMessage = {
+  id: string;
+  /** Ключ, с которым клиент отправил сообщение (есть у сообщений жителя). */
+  clientMessageId?: string;
+  author: { role: MessageAuthorRole; name?: string };
+  mine: boolean;
+  text?: string;
+  attachment?: MessageAttachment;
+  createdAt: string;
+};
+
+export type SendMessageInput = {
+  /** Ключ идемпотентности: повтор с тем же ключом возвращает то же сообщение. */
+  clientMessageId: string;
+  text?: string;
+  attachmentIds?: string[];
+};
+
+export type HistoryEvent = { id: string; at: string; text: string };
+
+export type RequestFile = MessageAttachment;
+
 /** Контракт данных мобильного приложения (см. api/openapi.yaml). */
 export interface ApiClient {
   requestCode(input: RequestCodeInput): Promise<RequestCodeResult>;
@@ -95,10 +155,17 @@ export interface ApiClient {
   getCategories(): Promise<Category[]>;
   /** При отмене через signal бросает ApiError('aborted'). */
   uploadAttachment(input: UploadAttachmentInput): Promise<UploadAttachmentResult>;
+  listRequests(input: ListRequestsInput): Promise<RequestsPage>;
+  /** Если заявки нет, бросает ApiError('not_found'). */
+  getRequest(id: string): Promise<RequestDetails>;
+  listMessages(id: string): Promise<ChatMessage[]>;
+  sendMessage(id: string, input: SendMessageInput): Promise<ChatMessage>;
+  listHistory(id: string): Promise<HistoryEvent[]>;
+  listFiles(id: string): Promise<RequestFile[]>;
 }
 
 export type ApiErrorCode =
-  'invalid_code' | 'rate_limited' | 'network' | 'validation' | 'aborted' | 'unknown';
+  'invalid_code' | 'rate_limited' | 'network' | 'validation' | 'not_found' | 'aborted' | 'unknown';
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
