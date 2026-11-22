@@ -90,6 +90,7 @@ export default function RootLayout() {
           <Stack.Screen name="requests/[id]" />
           <Stack.Screen name="chats/[id]" />
           <Stack.Screen name="news/[id]" />
+          <Stack.Screen name="profile/[section]" />
         </Stack.Protected>
       </Stack>
     </QueryClientProvider>
