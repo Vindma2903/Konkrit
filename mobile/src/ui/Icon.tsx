@@ -57,6 +57,16 @@ const glyphs = {
       <Path d="M14 3v5h5" />
     </>
   ),
+  camera: (
+    <>
+      <Path d="M4 8h3l2-3h6l2 3h3v11H4Z" />
+      <Circle cx={12} cy={13} r={3.5} />
+    </>
+  ),
+  plus: <Path d="M12 5v14M5 12h14" />,
+  wifiOff: (
+    <Path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01" />
+  ),
   suggest: (
     <Path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />
   ),

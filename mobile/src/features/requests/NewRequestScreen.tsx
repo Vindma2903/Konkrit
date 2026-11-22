@@ -56,6 +56,7 @@ export function NewRequestScreen() {
         categoryId: category?.id ?? '',
         description: trimmed,
         residencyId: residency?.id ?? '',
+        attachmentIds: [],
       }),
     onSuccess: () => {
       reset();

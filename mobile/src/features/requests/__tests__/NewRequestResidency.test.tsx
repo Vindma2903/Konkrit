@@ -18,6 +18,7 @@ const residency: Residency = {
   address: 'г. Оренбург, ул. Тестовая, д. 1',
   apartment: '12',
   status: 'confirmed',
+  primary: true,
 };
 
 function fakeApi(overrides: Partial<ApiClient> = {}): ApiClient {
@@ -46,7 +47,13 @@ describe('NewRequestScreen: привязка квартиры', () => {
   });
 
   it('когда адрес загрузился, заявка уходит с настоящим идентификатором привязки', async () => {
-    const createRequest = jest.fn().mockResolvedValue({ id: 'request-1' });
+    const createRequest = jest.fn().mockResolvedValue({
+      id: 'request-1',
+      number: 1001,
+      createdAt: '2026-11-22T10:00:00.000Z',
+      status: 'new' as const,
+      answerWithinMin: 15,
+    });
     setApi(fakeApi({ getResidencies: jest.fn().mockResolvedValue([residency]), createRequest }));
     await renderWithProviders(<NewRequestScreen />);
     await screen.findByText('г. Оренбург, ул. Тестовая, д. 1, кв. 12');
@@ -66,7 +73,13 @@ describe('NewRequestScreen: привязка квартиры', () => {
       .fn()
       .mockRejectedValueOnce(new Error('network'))
       .mockImplementationOnce(() => new Promise<Residency[]>((done) => (finishRetry = done)));
-    const createRequest = jest.fn().mockResolvedValue({ id: 'request-1' });
+    const createRequest = jest.fn().mockResolvedValue({
+      id: 'request-1',
+      number: 1001,
+      createdAt: '2026-11-22T10:00:00.000Z',
+      status: 'new' as const,
+      answerWithinMin: 15,
+    });
     setApi(fakeApi({ getResidencies, createRequest }));
     await renderWithProviders(<NewRequestScreen />);
     await waitFor(() => expect(getResidencies).toHaveBeenCalledTimes(1));

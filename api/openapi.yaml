@@ -104,6 +104,52 @@ paths:
                 properties:
                   id: { type: string }
                   status: { type: string, enum: [pending] }
+  /categories:
+    get:
+      tags: [requests]
+      summary: Список категорий заявки
+      responses:
+        '200':
+          description: Категории
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Category' }
+  /attachments:
+    post:
+      tags: [requests]
+      summary: Загрузить вложение заявки
+      description: Файл грузится до создания заявки; в заявку передаётся идентификатор.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Файл принят
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: { type: string }
+        '413':
+          description: Файл больше допустимого (фото и документы — 20 МБ, видео — 100 МБ)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '415':
+          description: Недопустимый тип файла
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /categories/suggest:
     post:
       tags: [requests]
@@ -140,11 +186,7 @@ paths:
           description: Заявка создана
           content:
             application/json:
-              schema:
-                type: object
-                required: [id]
-                properties:
-                  id: { type: string }
+              schema: { $ref: '#/components/schemas/RequestCreated' }
         '422':
           description: Ошибки валидации по полям
           content:
@@ -204,13 +246,16 @@ components:
         company: { type: string }
     Residency:
       type: object
-      required: [id, houseId, address, apartment, status]
+      required: [id, houseId, address, apartment, status, primary]
       properties:
         id: { type: string }
         houseId: { type: string }
         address: { type: string }
         apartment: { type: string }
         status: { type: string, enum: [pending, confirmed] }
+        primary:
+          type: boolean
+          description: Основной адрес жителя, с него начинается новая заявка
     ResidencyCreate:
       type: object
       required: [houseId, apartment, role, verification]
@@ -230,11 +275,27 @@ components:
         name: { type: string }
     RequestCreate:
       type: object
-      required: [categoryId, description, residencyId]
+      required: [categoryId, description, residencyId, attachmentIds]
       properties:
         categoryId: { type: string }
         description: { type: string, minLength: 10, maxLength: 500 }
         residencyId: { type: string }
+        attachmentIds:
+          type: array
+          maxItems: 10
+          items: { type: string }
+          description: Идентификаторы загруженных вложений
+    RequestCreated:
+      type: object
+      required: [id, number, createdAt, status, answerWithinMin]
+      properties:
+        id: { type: string }
+        number: { type: integer }
+        createdAt: { type: string, format: date-time }
+        status: { type: string, enum: [new] }
+        answerWithinMin:
+          type: integer
+          description: За сколько минут отвечает диспетчер
     Error:
       type: object
       required: [code]

@@ -5,8 +5,8 @@ describe('classifyCategory', () => {
     expect(classifyCategory('Нет отопления во всей квартире с утра')?.name).toBe('Отопление');
   });
 
-  it('подбирает «Водоснабжение» по протечке', () => {
-    expect(classifyCategory('Течёт кран на кухне, протечка')?.name).toBe('Водоснабжение');
+  it('подбирает «Протечку» по описанию', () => {
+    expect(classifyCategory('Течёт кран на кухне, протечка')?.name).toBe('Протечка');
   });
 
   it('подбирает «Лифт»', () => {
@@ -21,12 +21,12 @@ describe('classifyCategory', () => {
     expect(classifyCategory('ЛИФТ СЛОМАЛСЯ')?.id).toBe('elevator');
   });
 
-  it('домофон в подъезде — «Двери и домофон», а не «Уборка»', () => {
-    expect(classifyCategory('Не работает домофон в подъезде')?.id).toBe('doors');
+  it('домофон в подъезде — «Домофон», а не «Уборка»', () => {
+    expect(classifyCategory('Не работает домофон в подъезде')?.id).toBe('intercom');
   });
 
   it('проводка не путается с водой: ищется начало слова', () => {
-    expect(classifyCategory('Искрит проводка в коридоре')?.id).toBe('electricity');
-    expect(classifyCategory('Нет воды в кране')?.id).toBe('water');
+    expect(classifyCategory('Искрит проводка в коридоре')?.id).toBe('electrics');
+    expect(classifyCategory('Нет воды в кране')?.id).toBe('plumbing');
   });
 });

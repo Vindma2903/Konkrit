@@ -1,4 +1,4 @@
-import { classifyCategory } from './categories';
+import { categories, classifyCategory } from './categories';
 import {
   ApiError,
   type ApiClient,
@@ -6,6 +6,7 @@ import {
   type House,
   type Residency,
   type SubmitResidencyInput,
+  type UploadAttachmentInput,
 } from './types';
 
 /** Код, который принимает мок. Работает только в режиме разработки. */
@@ -37,12 +38,16 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 export type MockApiOptions = {
   /** Задержка ответа, мс. В тестах — 0. */
   delayMs?: number;
+  /** Каждая N-я загрузка вложения падает (чтобы вручную увидеть состояние S7c). */
+  failUploadEvery?: number;
 };
 
 /** Мок-реализация ApiClient: данные в памяти, без сети. */
-export function createMockApi({ delayMs = 400 }: MockApiOptions = {}): ApiClient {
+export function createMockApi({ delayMs = 400, failUploadEvery }: MockApiOptions = {}): ApiClient {
   const residencies: Residency[] = [];
   let counter = 0;
+  let uploads = 0;
+  let requests = 0;
   const nextId = (prefix: string) => `${prefix}-${(counter += 1)}`;
 
   return {
@@ -82,6 +87,7 @@ export function createMockApi({ delayMs = 400 }: MockApiOptions = {}): ApiClient
         apartment: input.apartment,
         // Мок сразу подтверждает привязку, чтобы можно было пройти сценарий заявки.
         status: 'confirmed',
+        primary: residencies.length === 0,
       };
       residencies.push(residency);
       return { id: residency.id, status: 'pending' as const };
@@ -94,13 +100,39 @@ export function createMockApi({ delayMs = 400 }: MockApiOptions = {}): ApiClient
 
     async suggestCategory({ text, signal }) {
       await wait(delayMs);
-      if (signal?.aborted) throw new ApiError('unknown', 'aborted');
+      if (signal?.aborted) throw new ApiError('aborted');
       return classifyCategory(text);
     },
 
     async createRequest(input: CreateRequestInput) {
       await wait(delayMs);
-      return { id: nextId('request') };
+      requests += 1;
+      return {
+        id: nextId('request'),
+        number: 1000 + requests,
+        createdAt: new Date().toISOString(),
+        status: 'new' as const,
+        answerWithinMin: 15,
+      };
+    },
+
+    async getCategories() {
+      await wait(delayMs);
+      return [...categories];
+    },
+
+    async uploadAttachment({ signal, onProgress }: UploadAttachmentInput) {
+      uploads += 1;
+      const fails = failUploadEvery !== undefined && uploads % failUploadEvery === 0;
+      const steps = 10;
+      const stepMs = delayMs === 0 ? 0 : 150;
+      for (let step = 1; step <= steps; step += 1) {
+        await wait(stepMs);
+        if (signal?.aborted) throw new ApiError('aborted');
+        if (fails && step === 5) throw new ApiError('network');
+        onProgress?.(step / steps);
+      }
+      return { id: nextId('attachment') };
     },
   };
 }

@@ -25,6 +25,8 @@ export type Residency = {
   address: string;
   apartment: string;
   status: ResidencyStatus;
+  /** Основной адрес жителя: с него начинается новая заявка. */
+  primary: boolean;
 };
 
 export type Category = {
@@ -57,8 +59,27 @@ export type CreateRequestInput = {
   categoryId: string;
   description: string;
   residencyId: string;
+  /** Идентификаторы загруженных вложений. */
+  attachmentIds: string[];
 };
-export type CreateRequestResult = { id: string };
+export type CreateRequestResult = {
+  id: string;
+  /** Номер заявки для жителя. */
+  number: number;
+  /** Время создания, ISO 8601. */
+  createdAt: string;
+  status: 'new';
+  /** За сколько минут отвечает диспетчер. */
+  answerWithinMin: number;
+};
+
+export type UploadAttachmentInput = {
+  file: { uri: string; name: string; mimeType?: string; size?: number };
+  signal?: AbortSignal;
+  /** Доля загруженного, от 0 до 1. */
+  onProgress?: (fraction: number) => void;
+};
+export type UploadAttachmentResult = { id: string };
 
 /** Контракт данных мобильного приложения (см. api/openapi.yaml). */
 export interface ApiClient {
@@ -69,9 +90,13 @@ export interface ApiClient {
   getResidencies(): Promise<Residency[]>;
   suggestCategory(input: { text: string; signal?: AbortSignal }): Promise<Category | null>;
   createRequest(input: CreateRequestInput): Promise<CreateRequestResult>;
+  getCategories(): Promise<Category[]>;
+  /** При отмене через signal бросает ApiError('aborted'). */
+  uploadAttachment(input: UploadAttachmentInput): Promise<UploadAttachmentResult>;
 }
 
-export type ApiErrorCode = 'invalid_code' | 'rate_limited' | 'network' | 'unknown';
+export type ApiErrorCode =
+  'invalid_code' | 'rate_limited' | 'network' | 'validation' | 'aborted' | 'unknown';
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode;

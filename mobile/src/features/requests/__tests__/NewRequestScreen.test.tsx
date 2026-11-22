@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
-import { setApi, type ApiClient, type Residency } from '@/api';
+import { setApi, type ApiClient, type CreateRequestResult, type Residency } from '@/api';
 import { createMockApi } from '@/api/mockApi';
 import { renderWithProviders } from '@/test/utils';
 
@@ -19,6 +19,7 @@ const residency: Residency = {
   address: 'г. Оренбург, ул. Тестовая, д. 1',
   apartment: '12',
   status: 'confirmed',
+  primary: true,
 };
 
 function fakeApi(overrides: Partial<ApiClient> = {}): ApiClient {
@@ -219,7 +220,13 @@ describe('NewRequestScreen', () => {
     }
 
     it('шлёт категорию, описание без пробелов по краям и привязку, очищает черновик', async () => {
-      const createRequest = jest.fn().mockResolvedValue({ id: 'request-1' });
+      const createRequest = jest.fn().mockResolvedValue({
+        id: 'request-1',
+        number: 1001,
+        createdAt: '2026-11-22T10:00:00.000Z',
+        status: 'new' as const,
+        answerWithinMin: 15,
+      });
       setApi(fakeApi({ createRequest }));
       await fillValid();
 
@@ -230,6 +237,7 @@ describe('NewRequestScreen', () => {
           categoryId: 'heating',
           description: HEATING_TEXT,
           residencyId: 'residency-1',
+          attachmentIds: [],
         }),
       );
       await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/requests/sent'));
@@ -237,7 +245,7 @@ describe('NewRequestScreen', () => {
     });
 
     it('двойное нажатие отправляет один запрос', async () => {
-      const createRequest = jest.fn(() => new Promise<{ id: string }>(() => undefined));
+      const createRequest = jest.fn(() => new Promise<CreateRequestResult>(() => undefined));
       setApi(fakeApi({ createRequest }));
       await fillValid();
 
