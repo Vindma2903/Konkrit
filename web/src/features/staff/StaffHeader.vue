@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAccessStore } from '@/stores/access';
+import { pendingLabel } from './format';
 
 const route = useRoute();
 const access = useAccessStore();
@@ -30,7 +31,7 @@ const active = computed<'all' | 'pending' | 'rejected'>(() => {
       Заявки на доступ
       <template v-if="access.pendingCount > 0">
         <span class="count-badge" aria-hidden="true">{{ access.pendingCount }}</span>
-        <span class="sr-only">{{ access.pendingCount }} ожидают</span>
+        <span class="sr-only">{{ pendingLabel(access.pendingCount) }}</span>
       </template>
     </RouterLink>
     <RouterLink

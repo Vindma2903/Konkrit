@@ -29,6 +29,8 @@ const props = defineProps<{
   rejected?: boolean;
   busy?: boolean;
   error?: string;
+  /** Кнопка, с которой открыта панель: после закрытия фокус возвращается на неё. */
+  opener?: HTMLElement | null;
 }>();
 
 const emit = defineEmits<{
@@ -41,7 +43,7 @@ const titleId = useId();
 const roleId = useId();
 const root = ref<HTMLElement | null>(null);
 const list = ref<HTMLElement | null>(null);
-useFocusTrap(root, () => emit('close'), '[data-close]');
+useFocusTrap(root, () => emit('close'), '[data-close]', () => props.opener);
 
 const role = ref<StaffRole>(props.initialRole ?? 'engineer');
 const all = ref(props.initialScope?.all ?? false);

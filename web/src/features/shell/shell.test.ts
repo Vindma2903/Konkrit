@@ -3,14 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiError, type StaffAdminApi } from '@/api';
 import { createMockStaff } from '@/api/mockAuthApi';
 import { useSessionStore } from '@/stores/session';
-import { mountApp } from '@/test/helpers';
-
-async function openAs(email: string, path = '/') {
-  const first = await mountApp('/login');
-  await useSessionStore(first.pinia).login({ email, password: 'Password1', remember: true });
-  first.wrapper.unmount();
-  return mountApp(path);
-}
+import { mountApp, openAs } from '@/test/helpers';
 
 const navTitles = (wrapper: Awaited<ReturnType<typeof mountApp>>['wrapper']) =>
   wrapper.findAll('.shell__nav .nav-link span:not(.count-badge):not(.sr-only)').map((node) => node.text());

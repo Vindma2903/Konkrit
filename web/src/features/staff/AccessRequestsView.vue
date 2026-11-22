@@ -69,13 +69,25 @@ const rejecting = ref<AccessRequest | null>(null);
 const busy = ref(false);
 const actionError = ref('');
 
-function open(request: AccessRequest) {
+// Кнопка, с которой открыли окно: на неё вернётся фокус (по клику на строку — кнопка этой строки)
+const opener = ref<HTMLElement | null>(null);
+
+function triggerOf(event?: Event): HTMLElement | null {
+  const target = event?.currentTarget;
+  if (!(target instanceof HTMLElement)) return null;
+  return target.tagName === 'BUTTON' ? target : target.querySelector('button');
+}
+
+function open(request: AccessRequest, event?: Event) {
   actionError.value = '';
+  opener.value = triggerOf(event);
   reviewing.value = request;
 }
 
-function askReject(request: AccessRequest) {
+function askReject(request: AccessRequest, event?: Event) {
   actionError.value = '';
+  // из панели диалог открывают поверх неё: без события фокус вернётся на активный элемент панели
+  opener.value = triggerOf(event);
   rejecting.value = request;
 }
 
@@ -162,7 +174,7 @@ async function reject() {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="request in items" :key="request.id" class="row--click" :data-testid="`request-${request.id}`" @click="open(request)">
+          <tr v-for="request in items" :key="request.id" class="row--click" :data-testid="`request-${request.id}`" @click="open(request, $event)">
             <td>
               <div class="person">
                 <span class="avatar" aria-hidden="true"><Icon name="user" /></span>
@@ -181,12 +193,12 @@ async function reject() {
             </td>
             <td>
               <div class="row-actions">
-                <button class="btn btn--sm" type="button" @click.stop="open(request)">Подтвердить</button>
+                <button class="btn btn--sm" type="button" @click.stop="open(request, $event)">Подтвердить</button>
                 <button
                   v-if="request.status === 'pending'"
                   class="btn btn--sm btn--outline"
                   type="button"
-                  @click.stop="askReject(request)"
+                  @click.stop="askReject(request, $event)"
                 >
                   Отклонить
                 </button>
@@ -205,9 +217,10 @@ async function reject() {
       :rejected="reviewing.status === 'rejected'"
       :busy="busy"
       :error="rejecting ? '' : actionError"
+      :opener="opener"
       @close="closeAll"
       @submit="approve"
-      @reject="askReject(reviewing)"
+      @reject="askReject(reviewing, $event)"
     />
     <ConfirmDialog
       v-if="rejecting"
@@ -217,6 +230,7 @@ async function reject() {
       danger
       :busy="busy"
       :error="actionError"
+      :opener="opener"
       @confirm="reject"
       @cancel="rejecting = null"
     />

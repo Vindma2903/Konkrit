@@ -2,7 +2,9 @@
 import { ref } from 'vue';
 import { useFocusTrap } from './focus';
 
-defineProps<{
+const props = defineProps<{
+  /** Кнопка, с которой открыт диалог. */
+  opener?: HTMLElement | null;
   title: string;
   text?: string;
   confirmLabel: string;
@@ -18,7 +20,7 @@ const emit = defineEmits<{ confirm: []; cancel: [] }>();
 
 const root = ref<HTMLElement | null>(null);
 // Первый фокус — на «Отмена»: случайный Enter не подтвердит действие
-useFocusTrap(root, () => emit('cancel'), '[data-cancel]');
+useFocusTrap(root, () => emit('cancel'), '[data-cancel]', () => props.opener);
 </script>
 
 <template>

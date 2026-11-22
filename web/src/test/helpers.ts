@@ -5,6 +5,7 @@ import App from '@/App.vue';
 import { setApi, type StaffAuthApi } from '@/api';
 import { createMockStaff, type MockStaff } from '@/api/mockAuthApi';
 import { createAppRouter } from '@/router';
+import { useSessionStore } from '@/stores/session';
 
 const mounted: VueWrapper[] = [];
 
@@ -35,6 +36,21 @@ export async function mountApp(
   mounted.push(wrapper);
   await flushPromises();
   return { wrapper, router, pinia, api: api ?? mock.auth, mock };
+}
+
+/** Открывает приложение уже вошедшим сотрудником (сессия восстанавливается по «запомнить меня»). */
+export async function openAs(email: string, path = '/', mock: MockStaff = createMockStaff({ latencyMs: 0 })) {
+  const first = await mountApp('/login', undefined, mock);
+  await useSessionStore(first.pinia).login({ email, password: 'Password1', remember: true });
+  first.wrapper.unmount();
+  return mountApp(path, undefined, mock);
+}
+
+/** Кнопка по точному тексту. */
+export function button(wrapper: VueWrapper, text: string) {
+  const found = wrapper.findAll('button, a').find((item) => item.text() === text);
+  if (!found) throw new Error(`Кнопка «${text}» не найдена`);
+  return found;
 }
 
 export async function type(wrapper: VueWrapper, label: string, value: string) {

@@ -10,7 +10,13 @@ const FOCUSABLE =
  * Панель или диалог держат фокус внутри себя: Tab не выходит наружу, Esc закрывает,
  * а после закрытия фокус возвращается туда, откуда окно открыли.
  */
-export function useFocusTrap(root: Ref<HTMLElement | null>, onEscape: () => void, firstFocus?: string) {
+export function useFocusTrap(
+  root: Ref<HTMLElement | null>,
+  onEscape: () => void,
+  firstFocus?: string,
+  /** Кнопка, с которой открыли окно: Safari не фокусирует кнопку по клику, поэтому activeElement ненадёжен. */
+  getOpener?: () => HTMLElement | null | undefined,
+) {
   let opener: HTMLElement | null = null;
   const id = Symbol('trap');
 
@@ -41,7 +47,7 @@ export function useFocusTrap(root: Ref<HTMLElement | null>, onEscape: () => void
   }
 
   onMounted(() => {
-    opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    opener = getOpener?.() ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     const target = (firstFocus && root.value?.querySelector<HTMLElement>(firstFocus)) || items()[0];
     target?.focus();
     stack.push(id);

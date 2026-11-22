@@ -6,6 +6,7 @@ import Icon from '@/features/auth/Icon.vue';
 import { useAccessStore } from '@/stores/access';
 import { useSessionStore } from '@/stores/session';
 import { useToastStore } from '@/stores/toast';
+import { pendingLabel } from '@/features/staff/format';
 import NoAccess from './NoAccess.vue';
 import { NAV } from './nav';
 
@@ -107,7 +108,7 @@ async function logout() {
           <span>{{ item.title }}</span>
           <template v-if="item.key === 'staff' && access.pendingCount > 0">
             <span class="count-badge" aria-hidden="true">{{ access.pendingCount }}</span>
-            <span class="sr-only">{{ access.pendingCount }} заявок на доступ</span>
+            <span class="sr-only">{{ pendingLabel(access.pendingCount) }}</span>
           </template>
         </RouterLink>
       </nav>
