@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiError, getApi } from '@/api';
 import { useFlowStore } from '@/stores/flow';
@@ -14,7 +14,7 @@ const router = useRouter();
 const flow = useFlowStore();
 
 // Токен хранится только здесь и сразу убирается из адресной строки и истории
-const token = typeof route.query.token === 'string' ? route.query.token : '';
+let token = typeof route.query.token === 'string' ? route.query.token : '';
 if (route.query.token !== undefined) void router.replace({ name: 'reset' });
 
 const form = ref<HTMLFormElement | null>(null);
@@ -25,6 +25,17 @@ const errors = ref<{ password?: string; repeat?: string }>({});
 const attempted = ref(false);
 const formError = ref('');
 const submitting = ref(false);
+
+// Экран переиспользуется, если в этой же вкладке открыли другую ссылку из письма
+watch(
+  () => route.query.token,
+  (value) => {
+    if (typeof value !== 'string') return;
+    token = value;
+    invalid.value = false;
+    void router.replace({ name: 'reset' });
+  },
+);
 
 async function submit() {
   if (submitting.value) return;

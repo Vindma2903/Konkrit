@@ -364,7 +364,8 @@ paths:
   /staff/auth/logout:
     post:
       tags: [staff-auth]
-      summary: Выход сотрудника; сбрасывает refresh-куку
+      summary: Выход сотрудника; сбрасывает refresh-куку (работает и при истёкшем access-токене)
+      security: []
       responses:
         '204':
           description: Сессия закрыта

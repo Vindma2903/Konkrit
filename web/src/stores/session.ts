@@ -6,10 +6,13 @@ import { ApiError, getApi, type LoginInput, type StaffSession } from '@/api';
 export const useSessionStore = defineStore('session', () => {
   const session = ref<StaffSession | null>(null);
   const restored = ref(false);
+  /** Пользователь сам нажал «Выйти»: переход на вход делает экран, а не наблюдатель. */
+  const explicitLogout = ref(false);
   let restoring: Promise<void> | null = null;
 
   async function login(input: LoginInput) {
     session.value = await getApi().login(input);
+    explicitLogout.value = false;
     restored.value = true;
   }
 
@@ -37,7 +40,16 @@ export const useSessionStore = defineStore('session', () => {
 
   /** Сессия закрывается только после ответа сервера: иначе refresh-кука осталась бы живой. */
   async function logout() {
-    await getApi().logout(session.value?.accessToken ?? null);
+    explicitLogout.value = true;
+    try {
+      await getApi().logout(session.value?.accessToken ?? null);
+    } catch (error) {
+      // Токен уже недействителен — сервер сессию не держит, выходим локально
+      if (!(error instanceof ApiError && error.code === 'unauthorized')) {
+        explicitLogout.value = false;
+        throw error;
+      }
+    }
     session.value = null;
   }
 
@@ -46,5 +58,5 @@ export const useSessionStore = defineStore('session', () => {
     session.value = null;
   }
 
-  return { session, restored, login, restore, logout, expire };
+  return { session, restored, explicitLogout, login, restore, logout, expire };
 });

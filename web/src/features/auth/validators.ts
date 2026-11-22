@@ -35,6 +35,8 @@ export function formatPhone(digits: string): string {
  * удаляем последнюю цифру, иначе форматирование вернуло бы разделитель обратно.
  */
 export function nextPhoneValue(previous: string, raw: string): string {
+  // Первая «8» в пустом поле — российский префикс «8 900…», а не часть номера
+  if (previous === '' && raw.trim().startsWith('8')) raw = raw.trim().slice(1);
   let digits = nationalDigits(raw);
   if (raw.length < previous.length && digits === nationalDigits(previous)) digits = digits.slice(0, -1);
   return formatPhone(digits);

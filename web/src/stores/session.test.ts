@@ -19,6 +19,14 @@ describe('сессия', () => {
     expect(store.session).not.toBeNull();
   });
 
+  it('выход при истёкшем токене (401) всё равно закрывает сессию', async () => {
+    setApi(api({ logout: () => Promise.reject(new ApiError('unauthorized')) }));
+    const store = useSessionStore();
+    await store.login({ email: 'dispatcher@uk.ru', password: 'Password1', remember: true });
+    await store.logout();
+    expect(store.session).toBeNull();
+  });
+
   it('успешный выход очищает сессию', async () => {
     setApi(api({}));
     const store = useSessionStore();

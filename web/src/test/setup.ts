@@ -1,6 +1,8 @@
 import { afterEach } from 'vitest';
+import { unmountAll } from './helpers';
 
 afterEach(() => {
+  unmountAll();
   try {
     sessionStorage.clear();
     localStorage.clear();

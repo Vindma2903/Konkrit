@@ -11,7 +11,7 @@ const session = useSessionStore();
 watch(
   () => session.session,
   (value) => {
-    if (!value && route.meta.requiresAuth) {
+    if (!value && route.meta.requiresAuth && !session.explicitLogout) {
       void router.replace({ name: 'login', query: { next: route.fullPath } });
     }
   },

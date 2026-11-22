@@ -6,6 +6,20 @@ import { setApi, type StaffAuthApi } from '@/api';
 import { createMockAuthApi } from '@/api/mockAuthApi';
 import { createAppRouter } from '@/router';
 
+const mounted: VueWrapper[] = [];
+
+/** Размонтирует всё, что смонтировал mountApp, чтобы узлы не копились в document.body. */
+export function unmountAll() {
+  for (const wrapper of mounted.splice(0)) {
+    try {
+      wrapper.unmount();
+    } catch {
+      // уже размонтирован тестом
+    }
+  }
+  document.body.innerHTML = '';
+}
+
 export async function mountApp(path: string, api: StaffAuthApi = createMockAuthApi({ latencyMs: 0 })) {
   setApi(api);
   const pinia = createPinia();
@@ -14,6 +28,7 @@ export async function mountApp(path: string, api: StaffAuthApi = createMockAuthA
   await router.push(path);
   await router.isReady();
   const wrapper = mount(App, { global: { plugins: [pinia, router] }, attachTo: document.body });
+  mounted.push(wrapper);
   await flushPromises();
   return { wrapper, router, pinia, api };
 }

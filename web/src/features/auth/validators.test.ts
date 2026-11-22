@@ -50,6 +50,12 @@ describe('телефон', () => {
     expect(toE164('8 (900) 123-45-67')).toBe('+79001234567');
   });
 
+  it('ручной ввод с 8 не превращает префикс в цифру номера', () => {
+    let value = '';
+    for (const char of '89001234567') value = nextPhoneValue(value, value + char);
+    expect(value).toBe('+7 900 123-45-67');
+  });
+
   it('отбрасывает буквы при вводе', () => {
     expect(nextPhoneValue('+7 900', '+7 900a')).toBe('+7 900');
   });

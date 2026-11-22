@@ -9,6 +9,8 @@ declare module 'vue-router' {
   }
 }
 
+const RESTORE_WAIT_MS = 3000;
+
 export function createAppRouter(history: RouterHistory) {
   const router = createRouter({
     history,
@@ -38,7 +40,15 @@ export function createAppRouter(history: RouterHistory) {
 
   router.beforeEach(async (to) => {
     const session = useSessionStore();
-    await session.restore();
+    // Не держим экран дольше 3 с, если бэкенд не отвечает: восстановление продолжится в фоне
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      session.restore(),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, RESTORE_WAIT_MS);
+      }),
+    ]);
+    clearTimeout(timer);
     if (to.meta.requiresAuth && !session.session) {
       return { name: 'login', query: { next: to.fullPath } };
     }
