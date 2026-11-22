@@ -5,11 +5,13 @@ import App from './App.vue';
 import { setApi } from './api';
 import { createAppRouter } from './router';
 import './styles/main.css';
+import './styles/crm.css';
 
 // Мок только в режиме разработки; в релизной сборке ветка удаляется целиком
 if (import.meta.env.DEV) {
-  const { createMockAuthApi } = await import('./api/mockAuthApi');
-  setApi(createMockAuthApi());
+  const { createMockStaff } = await import('./api/mockAuthApi');
+  const mock = createMockStaff({ persist: true });
+  setApi(mock.auth, mock.admin);
 }
 
 const pinia = createPinia();

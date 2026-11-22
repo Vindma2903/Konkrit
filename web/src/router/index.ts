@@ -1,4 +1,5 @@
 import { createRouter, type RouterHistory } from 'vue-router';
+import type { Permission } from '@/api';
 import { useFlowStore } from '@/stores/flow';
 import { useSessionStore } from '@/stores/session';
 
@@ -6,6 +7,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean;
     guestOnly?: boolean;
+    /** Право, без которого раздел показывает «Нет доступа». */
+    permission?: Permission;
   }
 }
 
@@ -17,9 +20,30 @@ export function createAppRouter(history: RouterHistory) {
     routes: [
       {
         path: '/',
-        name: 'cabinet',
-        component: () => import('@/features/cabinet/CabinetView.vue'),
+        component: () => import('@/features/shell/ShellLayout.vue'),
         meta: { requiresAuth: true },
+        children: [
+          { path: '', name: 'cabinet', component: () => import('@/features/shell/SectionStub.vue') },
+          { path: 'section/:name', name: 'section', component: () => import('@/features/shell/SectionStub.vue') },
+          {
+            path: 'staff',
+            name: 'staff',
+            component: () => import('@/features/staff/StaffListView.vue'),
+            meta: { permission: 'staff.manage' },
+          },
+          {
+            path: 'staff/access',
+            name: 'staff-access',
+            component: () => import('@/features/staff/AccessRequestsView.vue'),
+            meta: { permission: 'staff.manage' },
+          },
+          {
+            path: 'staff/roles',
+            name: 'staff-roles',
+            component: () => import('@/features/staff/RolesView.vue'),
+            meta: { permission: 'staff.manage' },
+          },
+        ],
       },
       { path: '/login', name: 'login', component: () => import('@/features/auth/LoginView.vue'), meta: { guestOnly: true } },
       { path: '/register', name: 'register', component: () => import('@/features/auth/RegisterView.vue'), meta: { guestOnly: true } },

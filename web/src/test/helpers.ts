@@ -3,8 +3,9 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createMemoryHistory } from 'vue-router';
 import App from '@/App.vue';
 import { setApi, type StaffAuthApi } from '@/api';
-import { createMockAuthApi } from '@/api/mockAuthApi';
+import { createMockStaff, type MockStaff } from '@/api/mockAuthApi';
 import { createAppRouter } from '@/router';
+import { useSessionStore } from '@/stores/session';
 
 const mounted: VueWrapper[] = [];
 
@@ -20,8 +21,12 @@ export function unmountAll() {
   document.body.innerHTML = '';
 }
 
-export async function mountApp(path: string, api: StaffAuthApi = createMockAuthApi({ latencyMs: 0 })) {
-  setApi(api);
+export async function mountApp(
+  path: string,
+  api?: StaffAuthApi,
+  mock: MockStaff = createMockStaff({ latencyMs: 0 }),
+) {
+  setApi(api ?? mock.auth, mock.admin);
   const pinia = createPinia();
   setActivePinia(pinia);
   const router = createAppRouter(createMemoryHistory());
@@ -30,7 +35,22 @@ export async function mountApp(path: string, api: StaffAuthApi = createMockAuthA
   const wrapper = mount(App, { global: { plugins: [pinia, router] }, attachTo: document.body });
   mounted.push(wrapper);
   await flushPromises();
-  return { wrapper, router, pinia, api };
+  return { wrapper, router, pinia, api: api ?? mock.auth, mock };
+}
+
+/** Открывает приложение уже вошедшим сотрудником (сессия восстанавливается по «запомнить меня»). */
+export async function openAs(email: string, path = '/', mock: MockStaff = createMockStaff({ latencyMs: 0 })) {
+  const first = await mountApp('/login', undefined, mock);
+  await useSessionStore(first.pinia).login({ email, password: 'Password1', remember: true });
+  first.wrapper.unmount();
+  return mountApp(path, undefined, mock);
+}
+
+/** Кнопка по точному тексту. */
+export function button(wrapper: VueWrapper, text: string) {
+  const found = wrapper.findAll('button, a').find((item) => item.text() === text);
+  if (!found) throw new Error(`Кнопка «${text}» не найдена`);
+  return found;
 }
 
 export async function type(wrapper: VueWrapper, label: string, value: string) {
