@@ -117,7 +117,7 @@ async function submit() {
       <div class="row">
         <label class="check">
           <input v-model="remember" type="checkbox" />
-          <span class="check__text">Запомнить меня</span>
+          <span>Запомнить меня</span>
         </label>
         <RouterLink class="link" :to="{ name: 'forgot' }" @click="flow.emailDraft = email.trim()">
           Забыли пароль?

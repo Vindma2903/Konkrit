@@ -143,14 +143,14 @@ async function submit() {
         :error="errors.repeat"
       />
       <div class="field">
-        <label class="check">
+        <label class="check check--top">
           <input
             v-model="consent"
             type="checkbox"
             :aria-invalid="errors.consent ? 'true' : 'false'"
             :aria-describedby="errors.consent ? 'consent-error' : undefined"
           />
-          <span class="check__text">
+          <span>
             Согласен с
             <a class="link" href="/legal/terms.html" target="_blank" rel="noopener noreferrer">условиями использования</a>
             и
