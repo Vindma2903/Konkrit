@@ -30,12 +30,11 @@ export function RequestSentScreen() {
         <>
           <Button
             title="Открыть заявку"
-            onPress={() =>
-              router.replace({
-                pathname: '/requests/details',
-                params: { number: String(summary.number) },
-              })
-            }
+            onPress={() => {
+              // Сначала «Мои заявки», затем карточка: «Назад» из карточки ведёт в список, а не в форму.
+              router.dismissTo('/requests');
+              router.push({ pathname: '/requests/[id]', params: { id: summary.id } });
+            }}
             testID="request-sent-open"
           />
           <Button

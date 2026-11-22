@@ -4,7 +4,6 @@ import { BackHandler } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useCreatedRequest } from '../createdRequestStore';
-import { RequestDetailsStub } from '../RequestDetailsStub';
 import { RequestFailedScreen } from '../RequestFailedScreen';
 import { RequestSentScreen } from '../RequestSentScreen';
 
@@ -53,16 +52,18 @@ describe('S9: заявка создана', () => {
     expect(screen.getByText('Диспетчер ответит в течение 15 мин')).toBeOnTheScreen();
   });
 
-  it('«Открыть заявку» ведёт на заглушку карточки с номером', async () => {
+  it('«Открыть заявку» ведёт в карточку через «Мои заявки», чтобы «Назад» вернул к списку', async () => {
     useCreatedRequest.getState().setSummary(summary);
     await withProvider(<RequestSentScreen />);
 
     await fireEvent.press(screen.getByTestId('request-sent-open'));
 
-    expect(router.replace).toHaveBeenCalledWith({
-      pathname: '/requests/details',
-      params: { number: '1042' },
+    expect(router.dismissTo).toHaveBeenCalledWith('/requests');
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/requests/[id]',
+      params: { id: 'request-1' },
     });
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it('«На главную» возвращает на главную без лишних экранов', async () => {
@@ -141,17 +142,6 @@ describe('S10: не удалось отправить', () => {
 
     await fireEvent.press(screen.getByTestId('request-failed-close'));
 
-    expect(router.dismissTo).toHaveBeenCalledWith('/home');
-  });
-});
-
-describe('заглушка карточки заявки', () => {
-  it('показывает номер заявки и ведёт на главную', async () => {
-    jest.mocked(useLocalSearchParams).mockReturnValue({ number: '1042' });
-    await withProvider(<RequestDetailsStub />);
-
-    expect(screen.getByText('Заявка № 1042')).toBeOnTheScreen();
-    await fireEvent.press(screen.getByTestId('details-home'));
     expect(router.dismissTo).toHaveBeenCalledWith('/home');
   });
 });
