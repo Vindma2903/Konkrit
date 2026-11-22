@@ -101,6 +101,61 @@ const glyphs = {
     <Path d="m20 11-8.5 8.5a5 5 0 0 1-7-7L13 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L14 7" />
   ),
   send: <Path d="M4 12 20 4l-4 16-4-6-8-2Z" />,
+  chevronRight: <Path d="m9 6 6 6-6 6" />,
+  building: (
+    <>
+      <Path d="M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16" />
+      <Path d="M15 10h3a1 1 0 0 1 1 1v10" />
+      <Path d="M3 21h18M9 8h2M9 12h2M9 16h2" />
+    </>
+  ),
+  door: (
+    <>
+      <Path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17" />
+      <Path d="M4 21h16" />
+      <Circle cx={14.5} cy={12.5} r={0.8} />
+    </>
+  ),
+  people: (
+    <>
+      <Circle cx={9} cy={8} r={3.5} />
+      <Path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <Circle cx={17} cy={9} r={2.5} />
+      <Path d="M17 14a5 5 0 0 1 4.5 6" />
+    </>
+  ),
+  logout: (
+    <>
+      <Path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+      <Path d="m16 8 4 4-4 4M20 12H9" />
+    </>
+  ),
+  bell: (
+    <>
+      <Path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15Z" />
+      <Path d="M10 21h4" />
+    </>
+  ),
+  wallet: (
+    <>
+      <Rect x={3} y={6} width={18} height={14} rx={3} />
+      <Path d="M3 10h18M16 15h2" />
+    </>
+  ),
+  help: (
+    <>
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01" />
+    </>
+  ),
+  share: (
+    <>
+      <Circle cx={6} cy={12} r={2.5} />
+      <Circle cx={18} cy={6} r={2.5} />
+      <Circle cx={18} cy={18} r={2.5} />
+      <Path d="m8.2 10.8 7.6-3.6M8.2 13.2l7.6 3.6" />
+    </>
+  ),
   suggest: (
     <Path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />
   ),

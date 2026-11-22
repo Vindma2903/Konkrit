@@ -9,6 +9,7 @@ import {
 
 import { colors, radius, sizes } from '@/theme';
 
+import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
 
 type ButtonProps = {
@@ -20,6 +21,8 @@ type ButtonProps = {
   loadingLabel?: string;
   /** secondary — белая кнопка; danger — белая с красным текстом (удаление). */
   variant?: 'primary' | 'secondary' | 'danger';
+  /** Иконка слева от подписи того же цвета. */
+  icon?: IconName;
   testID?: string;
   style?: StyleProp<ViewStyle>;
 };
@@ -32,6 +35,7 @@ export function Button({
   loading = false,
   loadingLabel,
   variant = 'primary',
+  icon,
   testID,
   style,
 }: ButtonProps) {
@@ -69,6 +73,13 @@ export function Button({
               {loadingLabel}
             </Text>
           ) : null}
+        </View>
+      ) : icon ? (
+        <View style={styles.loadingRow}>
+          <Icon name={icon} size={22} color={textColor} />
+          <Text weight={700} size={16} color={textColor}>
+            {title}
+          </Text>
         </View>
       ) : (
         <Text weight={700} size={16} color={textColor}>

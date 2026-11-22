@@ -16,8 +16,8 @@ import { renderWithProviders } from '@/test/utils';
 
 import { RequestCardScreen } from '../card/RequestCardScreen';
 import { ChatTab } from '../chat/ChatTab';
-import { resetOutbox, useChatOutbox } from '../chat/outbox';
-import { POLL_INTERVAL_MS } from '../chat/useRequestChat';
+import { requestChannel, resetOutbox, useChatOutbox } from '../chat/outbox';
+import { POLL_INTERVAL_MS } from '../chat/useChannelChat';
 import { RequestsScreen } from '../RequestsScreen';
 
 jest.mock('expo-secure-store', () => ({
@@ -101,7 +101,7 @@ describe('очередь сообщений чата', () => {
     // Житель ушёл с экрана, не дождавшись ответа.
     first.unmount();
     await waitFor(() =>
-      expect(useChatOutbox.getState().byRequest[REQUEST]?.[0]?.status).toBe('failed'),
+      expect(useChatOutbox.getState().byChannel[requestChannel(REQUEST)]?.[0]?.status).toBe('failed'),
     );
 
     await renderWithProviders(<ChatTab requestId={REQUEST} active />);
@@ -123,7 +123,7 @@ describe('очередь сообщений чата', () => {
     await fireEvent.press(screen.getByTestId('chat-send'));
     first.unmount();
     await waitFor(() =>
-      expect(useChatOutbox.getState().byRequest[REQUEST]?.[0]?.status).toBe('failed'),
+      expect(useChatOutbox.getState().byChannel[requestChannel(REQUEST)]?.[0]?.status).toBe('failed'),
     );
     await renderWithProviders(<ChatTab requestId={REQUEST} active />);
 
@@ -162,7 +162,7 @@ describe('очередь сообщений чата', () => {
     await act(async () => {
       await useSessionStore.getState().signOut();
     });
-    expect(useChatOutbox.getState().byRequest).toEqual({});
+    expect(useChatOutbox.getState().byChannel).toEqual({});
     await act(async () =>
       finish({
         id: 'late',

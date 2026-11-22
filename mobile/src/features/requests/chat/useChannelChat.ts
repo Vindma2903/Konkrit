@@ -2,15 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { AppState } from 'react-native';
 
-import { getApi, type ChatMessage } from '@/api';
+import type { ChatMessage } from '@/api';
 
 import type { PickedFile } from '../pickers';
 import {
+  channelMessagesKey,
   EMPTY_PENDING,
   enqueueMessage,
-  messagesKey,
+  listChannelMessages,
   retryMessage,
   useChatOutbox,
+  type ChannelId,
   type PendingMessage,
 } from './outbox';
 
@@ -23,14 +25,14 @@ export type ChatItem =
   | { kind: 'pending'; key: string; pending: PendingMessage };
 
 /**
- * Переписка по заявке: сообщения сервера, опрос раз в 5 секунд, пока чат открыт,
- * и неподтверждённые сообщения жителя из очереди (она живёт вне экрана).
+ * Переписка по каналу (заявка или чат): сообщения сервера, опрос раз в 5 секунд, пока чат
+ * открыт, и неподтверждённые сообщения жителя из очереди (она живёт вне экрана).
  */
-export function useRequestChat(requestId: string, active: boolean) {
-  const queryKey = useMemo(() => messagesKey(requestId), [requestId]);
+export function useChannelChat(channel: ChannelId, active: boolean) {
+  const queryKey = useMemo(() => channelMessagesKey(channel), [channel]);
   const messages = useQuery({
     queryKey,
-    queryFn: () => getApi().listMessages(requestId),
+    queryFn: () => listChannelMessages(channel),
     refetchInterval: active ? POLL_INTERVAL_MS : false,
   });
   const { refetch } = messages;
@@ -44,19 +46,16 @@ export function useRequestChat(requestId: string, active: boolean) {
     return () => subscription.remove();
   }, [active, refetch]);
 
-  const pending = useChatOutbox((state) => state.byRequest[requestId] ?? EMPTY_PENDING);
+  const pending = useChatOutbox((state) => state.byChannel[channel] ?? EMPTY_PENDING);
 
   const sendText = useCallback(
-    (text: string) => enqueueMessage(requestId, { text: text.trim() }),
-    [requestId],
+    (text: string) => enqueueMessage(channel, { text: text.trim() }),
+    [channel],
   );
-  const sendFile = useCallback(
-    (file: PickedFile) => enqueueMessage(requestId, { file }),
-    [requestId],
-  );
+  const sendFile = useCallback((file: PickedFile) => enqueueMessage(channel, { file }), [channel]);
   const retry = useCallback(
-    (clientMessageId: string) => retryMessage(requestId, clientMessageId),
-    [requestId],
+    (clientMessageId: string) => retryMessage(channel, clientMessageId),
+    [channel],
   );
 
   // Сообщение, которое сервер уже вернул в опросе, из неподтверждённых убираем (без дублей).

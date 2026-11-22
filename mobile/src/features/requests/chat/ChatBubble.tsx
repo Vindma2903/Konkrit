@@ -23,6 +23,10 @@ export type BubbleDelivery = 'sent' | 'sending' | 'failed';
 type ChatBubbleProps = {
   mine: boolean;
   role: MessageAuthorRole;
+  /** Подпись над сообщением; без значения — по роли автора, null — без подписи. */
+  label?: string | null;
+  /** Время под сообщением («14:05»); пока сообщение не подтверждено, вместо него «Отправляется…». */
+  time?: string;
   text?: string;
   attachment?: Pick<MessageAttachment, 'kind' | 'name' | 'url'>;
   delivery: BubbleDelivery;
@@ -34,6 +38,8 @@ type ChatBubbleProps = {
 export const ChatBubble = memo(function ChatBubble({
   mine,
   role,
+  label: labelProp,
+  time,
   text,
   attachment,
   delivery,
@@ -41,14 +47,17 @@ export const ChatBubble = memo(function ChatBubble({
   testID,
 }: ChatBubbleProps) {
   const [imageFailed, setImageFailed] = useState(false);
-  const label = mine ? authorLabels.resident : authorLabels[role];
+  const label =
+    labelProp !== undefined ? labelProp : mine ? authorLabels.resident : authorLabels[role];
   const photo = attachment?.kind === 'image';
 
   return (
     <View style={[styles.column, mine ? styles.mine : styles.theirs]} testID={testID}>
-      <Text weight={600} size={11} color={colors.textMuted}>
-        {label}
-      </Text>
+      {label ? (
+        <Text weight={600} size={11} color={colors.textMuted}>
+          {label}
+        </Text>
+      ) : null}
 
       {attachment && photo ? (
         <View style={styles.photo} testID={`${testID}-photo`}>
@@ -92,6 +101,11 @@ export const ChatBubble = memo(function ChatBubble({
         </View>
       ) : null}
 
+      {delivery === 'sent' && time ? (
+        <Text weight={500} size={11} color={colors.textMuted} testID={`${testID}-time`}>
+          {time}
+        </Text>
+      ) : null}
       {delivery === 'sending' ? (
         <Text weight={500} size={11} color={colors.textMuted} testID={`${testID}-state`}>
           Отправляется…

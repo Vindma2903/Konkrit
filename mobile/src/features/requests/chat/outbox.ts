@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { getApi, type ChatMessage } from '@/api';
+import { getApi, type ChatMessage, type SendMessageInput } from '@/api';
 import { newClientId } from '@/lib/id';
 import { queryClient } from '@/lib/queryClient';
 
@@ -17,17 +17,24 @@ export type PendingMessage = {
   createdAt: string;
 };
 
+/** Канал переписки: `request:<id>` — чат заявки, `chat:<id>` — чат дома или с УК. */
+export type ChannelId = string;
+
+export const requestChannel = (requestId: string): ChannelId => `request:${requestId}`;
+export const chatChannel = (chatId: string): ChannelId => `chat:${chatId}`;
+
 type OutboxState = {
   /** Меняется при выходе из аккаунта: запоздавшие ответы чужой сессии игнорируются. */
   epoch: number;
-  byRequest: Record<string, PendingMessage[]>;
+  byChannel: Record<ChannelId, PendingMessage[]>;
 };
 
 /**
- * Неотправленные сообщения по заявкам. Живут вне экрана: житель мог выйти из карточки,
- * пока шла отправка, и сообщение не должно пропасть молча (останется «Не отправлено · Повторить»).
+ * Неотправленные сообщения по каналам (заявки и чаты). Живут вне экрана: житель мог выйти
+ * из переписки, пока шла отправка, и сообщение не должно пропасть молча
+ * (останется «Не отправлено · Повторить»).
  */
-export const useChatOutbox = create<OutboxState>(() => ({ epoch: 0, byRequest: {} }));
+export const useChatOutbox = create<OutboxState>(() => ({ epoch: 0, byChannel: {} }));
 
 export const EMPTY_PENDING: PendingMessage[] = [];
 
@@ -35,22 +42,45 @@ const inFlight = new Set<string>();
 
 export const messagesKey = (requestId: string) => ['request', requestId, 'messages'];
 
-function patch(requestId: string, clientMessageId: string, change: Partial<PendingMessage>) {
+function splitChannel(channel: ChannelId): { kind: 'request' | 'chat'; id: string } {
+  const index = channel.indexOf(':');
+  const kind = channel.slice(0, index);
+  return { kind: kind === 'chat' ? 'chat' : 'request', id: channel.slice(index + 1) };
+}
+
+/** Ключ кэша сообщений канала. */
+export function channelMessagesKey(channel: ChannelId): string[] {
+  const { kind, id } = splitChannel(channel);
+  return [kind, id, 'messages'];
+}
+
+/** Загрузить сообщения канала. */
+export function listChannelMessages(channel: ChannelId): Promise<ChatMessage[]> {
+  const { kind, id } = splitChannel(channel);
+  return kind === 'chat' ? getApi().listChatMessages(id) : getApi().listMessages(id);
+}
+
+function sendToChannel(channel: ChannelId, input: SendMessageInput): Promise<ChatMessage> {
+  const { kind, id } = splitChannel(channel);
+  return kind === 'chat' ? getApi().sendChatMessage(id, input) : getApi().sendMessage(id, input);
+}
+
+function patch(channel: ChannelId, clientMessageId: string, change: Partial<PendingMessage>) {
   useChatOutbox.setState((state) => ({
-    byRequest: {
-      ...state.byRequest,
-      [requestId]: (state.byRequest[requestId] ?? []).map((item) =>
+    byChannel: {
+      ...state.byChannel,
+      [channel]: (state.byChannel[channel] ?? []).map((item) =>
         item.clientMessageId === clientMessageId ? { ...item, ...change } : item,
       ),
     },
   }));
 }
 
-function remove(requestId: string, clientMessageId: string) {
+function remove(channel: ChannelId, clientMessageId: string) {
   useChatOutbox.setState((state) => ({
-    byRequest: {
-      ...state.byRequest,
-      [requestId]: (state.byRequest[requestId] ?? []).filter(
+    byChannel: {
+      ...state.byChannel,
+      [channel]: (state.byChannel[channel] ?? []).filter(
         (item) => item.clientMessageId !== clientMessageId,
       ),
     },
@@ -58,13 +88,13 @@ function remove(requestId: string, clientMessageId: string) {
 }
 
 /** Загрузить файл (если есть) и отправить сообщение; повтор с тем же ключом не создаёт дубль. */
-export async function deliver(requestId: string, item: PendingMessage): Promise<void> {
+export async function deliver(channel: ChannelId, item: PendingMessage): Promise<void> {
   const id = item.clientMessageId;
   if (inFlight.has(id)) return;
   inFlight.add(id);
   const { epoch } = useChatOutbox.getState();
   const alive = () => useChatOutbox.getState().epoch === epoch;
-  patch(requestId, id, { status: 'sending' });
+  patch(channel, id, { status: 'sending' });
   try {
     let attachmentId = item.remoteAttachmentId;
     if (item.file && !attachmentId) {
@@ -78,9 +108,9 @@ export async function deliver(requestId: string, item: PendingMessage): Promise<
       });
       if (!alive()) return;
       attachmentId = uploaded.id;
-      patch(requestId, id, { remoteAttachmentId: attachmentId });
+      patch(channel, id, { remoteAttachmentId: attachmentId });
     }
-    const sent = await getApi().sendMessage(requestId, {
+    const sent = await sendToChannel(channel, {
       clientMessageId: id,
       text: item.text,
       attachmentIds: attachmentId ? [attachmentId] : undefined,
@@ -88,20 +118,20 @@ export async function deliver(requestId: string, item: PendingMessage): Promise<
     if (!alive()) return;
     // Опрос мог уйти до отправки и вернуться без нового сообщения: отменяем его,
     // иначе он затрёт только что добавленное сообщение до следующего опроса.
-    await queryClient.cancelQueries({ queryKey: messagesKey(requestId) });
+    await queryClient.cancelQueries({ queryKey: channelMessagesKey(channel) });
     if (!alive()) return;
-    queryClient.setQueryData<ChatMessage[]>(messagesKey(requestId), (old) =>
+    queryClient.setQueryData<ChatMessage[]>(channelMessagesKey(channel), (old) =>
       old?.some((message) => message.id === sent.id) ? old : [...(old ?? []), sent],
     );
-    remove(requestId, id);
+    remove(channel, id);
   } catch {
-    if (alive()) patch(requestId, id, { status: 'failed' });
+    if (alive()) patch(channel, id, { status: 'failed' });
   } finally {
     inFlight.delete(id);
   }
 }
 
-export function enqueueMessage(requestId: string, draft: Pick<PendingMessage, 'text' | 'file'>) {
+export function enqueueMessage(channel: ChannelId, draft: Pick<PendingMessage, 'text' | 'file'>) {
   const item: PendingMessage = {
     clientMessageId: newClientId(),
     ...draft,
@@ -109,19 +139,19 @@ export function enqueueMessage(requestId: string, draft: Pick<PendingMessage, 't
     createdAt: new Date().toISOString(),
   };
   useChatOutbox.setState((state) => ({
-    byRequest: { ...state.byRequest, [requestId]: [...(state.byRequest[requestId] ?? []), item] },
+    byChannel: { ...state.byChannel, [channel]: [...(state.byChannel[channel] ?? []), item] },
   }));
-  void deliver(requestId, item);
+  void deliver(channel, item);
 }
 
-export function retryMessage(requestId: string, clientMessageId: string) {
+export function retryMessage(channel: ChannelId, clientMessageId: string) {
   const item = useChatOutbox
     .getState()
-    .byRequest[requestId]?.find((entry) => entry.clientMessageId === clientMessageId);
-  if (item) void deliver(requestId, item);
+    .byChannel[channel]?.find((entry) => entry.clientMessageId === clientMessageId);
+  if (item) void deliver(channel, item);
 }
 
 /** Выход из аккаунта: очередь стирается, ответы уже идущих запросов игнорируются. */
 export function resetOutbox() {
-  useChatOutbox.setState((state) => ({ epoch: state.epoch + 1, byRequest: {} }));
+  useChatOutbox.setState((state) => ({ epoch: state.epoch + 1, byChannel: {} }));
 }

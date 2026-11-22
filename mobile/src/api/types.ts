@@ -143,6 +143,37 @@ export type HistoryEvent = { id: string; at: string; text: string };
 
 export type RequestFile = MessageAttachment;
 
+export type ConversationKind = 'management' | 'house' | 'entrance' | 'council' | 'neighbors';
+
+export type Conversation = {
+  id: string;
+  kind: ConversationKind;
+  title: string;
+  /** Подпись в шапке: название УК или адрес дома. */
+  subtitle?: string;
+  last: { authorName: string; text: string; at: string } | null;
+  unread: boolean;
+};
+
+export type NewsKind = 'news' | 'announcement';
+
+export type NewsItem = {
+  id: string;
+  kind: NewsKind;
+  title: string;
+  preview: string;
+  /** Дата публикации, ISO 8601. */
+  date: string;
+  imageUrl?: string;
+};
+
+export type NewsDetails = NewsItem & { body: string[] };
+
+export type ListNewsInput = { kind: NewsKind; cursor?: string | null };
+export type NewsPage = { items: NewsItem[]; nextCursor: string | null };
+
+export type Profile = { name?: string; address?: string; apartment?: string };
+
 /** Контракт данных мобильного приложения (см. api/openapi.yaml). */
 export interface ApiClient {
   requestCode(input: RequestCodeInput): Promise<RequestCodeResult>;
@@ -162,6 +193,16 @@ export interface ApiClient {
   sendMessage(id: string, input: SendMessageInput): Promise<ChatMessage>;
   listHistory(id: string): Promise<HistoryEvent[]>;
   listFiles(id: string): Promise<RequestFile[]>;
+  listConversations(): Promise<Conversation[]>;
+  /** Если чата нет, бросает ApiError('not_found'). */
+  getConversation(id: string): Promise<Conversation>;
+  listChatMessages(id: string): Promise<ChatMessage[]>;
+  sendChatMessage(id: string, input: SendMessageInput): Promise<ChatMessage>;
+  markChatRead(id: string): Promise<void>;
+  listNews(input: ListNewsInput): Promise<NewsPage>;
+  /** Если новости нет, бросает ApiError('not_found'). */
+  getNews(id: string): Promise<NewsDetails>;
+  getProfile(): Promise<Profile>;
 }
 
 export type ApiErrorCode =

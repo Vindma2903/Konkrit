@@ -1,4 +1,5 @@
 import { categories, classifyCategory } from './categories';
+import { createMockCommunity } from './mockCommunity';
 import { createMockRequests, deriveTitle, type UploadedFile } from './mockRequests';
 import {
   ApiError,
@@ -59,6 +60,7 @@ export function createMockApi({
   const created = new Map<string, CreateRequestResult>();
   const uploaded = new Map<string, UploadedFile>();
   const requestsStore = createMockRequests({ pageSize });
+  const community = createMockCommunity({ pageSize });
   const lookupUpload = (id: string) => uploaded.get(id);
   const nextId = (prefix: string) => `${prefix}-${(counter += 1)}`;
 
@@ -214,6 +216,51 @@ export function createMockApi({
     async listFiles(id) {
       await wait(delayMs);
       return requestsStore.files(id);
+    },
+
+    async listConversations() {
+      await wait(delayMs);
+      return community.conversations();
+    },
+
+    async getConversation(id) {
+      await wait(delayMs);
+      return community.conversation(id);
+    },
+
+    async listChatMessages(id) {
+      await wait(delayMs);
+      return community.messages(id);
+    },
+
+    async sendChatMessage(id, input) {
+      await wait(delayMs);
+      return community.send(id, input, lookupUpload);
+    },
+
+    async markChatRead(id) {
+      await wait(delayMs);
+      community.markRead(id);
+    },
+
+    async listNews(input) {
+      await wait(delayMs);
+      return community.news(input);
+    },
+
+    async getNews(id) {
+      await wait(delayMs);
+      return community.newsItem(id);
+    },
+
+    async getProfile() {
+      await wait(delayMs);
+      const primary = residencies.find((item) => item.primary) ?? residencies[0];
+      return {
+        name: 'Иван Петров',
+        address: primary?.address,
+        apartment: primary?.apartment,
+      };
     },
   };
 }

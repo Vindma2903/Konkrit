@@ -7,7 +7,7 @@ import { renderWithProviders } from '@/test/utils';
 
 import { ChatTab } from '../chat/ChatTab';
 import { resetOutbox } from '../chat/outbox';
-import { POLL_INTERVAL_MS } from '../chat/useRequestChat';
+import { POLL_INTERVAL_MS } from '../chat/useChannelChat';
 import { setPickers, type PickedFile, type Pickers } from '../pickers';
 
 jest.mock('expo-router', () => ({
