@@ -1,9 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { View, type ScrollViewInstance } from 'react-native';
+import { Platform, View, type ScrollViewInstance } from 'react-native';
 
 import { ApiError, getApi } from '@/api';
+import { useSessionStore } from '@/features/auth/sessionStore';
 import { attachmentLimits } from '@/config';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useSingleFlight } from '@/lib/useSingleFlight';
@@ -32,6 +33,7 @@ import {
 const SUGGEST_DELAY_MS = 500;
 const NO_RESIDENCY_ERROR = 'Привяжите квартиру, чтобы отправить заявку';
 const RESIDENCY_LOAD_ERROR = 'Не удалось загрузить адрес. Проверьте соединение и попробуйте снова';
+const IOS_SHEET_CLOSE_MS = 400;
 const PICK_ERROR = 'Не удалось выбрать файл. Попробуйте ещё раз';
 
 type FieldKey = 'category' | 'description' | 'address';
@@ -60,6 +62,17 @@ export function NewRequestScreen() {
   const fieldY = useRef<Partial<Record<FieldKey, number>>>({});
   const autoRetried = useRef(false);
   const runOnce = useSingleFlight();
+
+  // Черновик принадлежит жителю: чужой стираем, свой помечаем.
+  const userId = useSessionStore((state) => state.user?.id);
+  useEffect(() => {
+    if (!userId) return;
+    const { ownerId, setOwnerId } = useRequestDraft.getState();
+    if (ownerId === userId) return;
+    // Чужой черновик стираем, после этого черновик принадлежит текущему жителю.
+    if (ownerId) void discardDraft();
+    setOwnerId(userId);
+  }, [userId]);
 
   const residencies = useQuery({
     queryKey: ['residencies'],
@@ -90,12 +103,18 @@ export function NewRequestScreen() {
   const filesBlock = uploadingCount > 0 || failedCount > 0;
 
   // Выход: при несохранённых данных или отправке экран не закрывается сам.
-  const dirty = isDraftDirty({ category, description, residencyId, attachments });
+  const dirty = isDraftDirty({ category, description, attachments });
   const sending = useRef(false);
   const disablePrevention = usePreventRemove(dirty && !leaving, () => {
     if (sending.current) return;
     setDiscardOpen(true);
   });
+
+  /** Форма могла открыться первой в стеке (ссылка, перезапуск): тогда «назад» некуда. */
+  function goBackOrHome() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/home');
+  }
 
   function leaveScreen() {
     setLeaving(true);
@@ -110,9 +129,13 @@ export function NewRequestScreen() {
         description: trimmed,
         residencyId: residency?.id ?? '',
         attachmentIds: attachments.flatMap((item) => (item.remoteId ? [item.remoteId] : [])),
+        // Один ключ на все повторы: если ответ потерялся, сервер не создаст вторую заявку.
+        clientRequestId: useRequestDraft.getState().ensureRequestKey(),
       });
     },
     onSuccess: (result) => {
+      // Житель вышел из аккаунта, пока шла отправка: итог чужой заявки некому показывать.
+      if (!useSessionStore.getState().tokens) return;
       useCreatedRequest.getState().setSummary({
         id: result.id,
         number: result.number,
@@ -122,10 +145,11 @@ export function NewRequestScreen() {
         answerWithinMin: result.answerWithinMin,
       });
       leaveScreen();
-      discardDraft();
+      void discardDraft();
       router.replace('/requests/sent');
     },
     onError: (error) => {
+      if (!useSessionStore.getState().tokens) return;
       // Черновик остаётся: сохраняем его сразу, не дожидаясь задержки записи.
       void flushDraftWrites().catch(() => undefined);
       leaveScreen();
@@ -185,6 +209,9 @@ export function NewRequestScreen() {
     setAttachMessages([]);
     let result: PickResult;
     try {
+      // iOS не открывает системное окно, пока закрывается лист: даём ему закончиться.
+      if (Platform.OS === 'ios')
+        await new Promise((resolve) => setTimeout(resolve, IOS_SHEET_CLOSE_MS));
       result = await run();
     } catch {
       setAttachMessages([PICK_ERROR]);
@@ -221,7 +248,7 @@ export function NewRequestScreen() {
         <>
           <Button
             title="Отправить заявку"
-            loadingLabel="Отправляем…"
+            loadingLabel={create.isPending ? 'Отправляем…' : undefined}
             onPress={submit}
             disabled={empty || filesBlock}
             loading={create.isPending || (residencies.isPending && !empty)}
@@ -340,13 +367,13 @@ export function NewRequestScreen() {
           void flushDraftWrites().catch(() => undefined);
           setDiscardOpen(false);
           leaveScreen();
-          router.back();
+          goBackOrHome();
         }}
         onDelete={() => {
           setDiscardOpen(false);
           leaveScreen();
-          discardDraft();
-          router.back();
+          void discardDraft();
+          goBackOrHome();
         }}
         onContinue={() => setDiscardOpen(false)}
       />

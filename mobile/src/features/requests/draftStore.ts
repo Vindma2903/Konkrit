@@ -29,6 +29,10 @@ type DraftData = {
   /** Выбранный для этой заявки адрес; null — основной. */
   residencyId: string | null;
   attachments: Attachment[];
+  /** Чей это черновик: при смене жителя чужой черновик стирается. */
+  ownerId: string | null;
+  /** Ключ идемпотентности: повтор отправки не создаёт вторую заявку. Живёт, пока заявка не создана. */
+  requestKey: string | null;
 };
 
 type DraftState = DraftData & {
@@ -38,10 +42,24 @@ type DraftState = DraftData & {
   addAttachments: (items: Attachment[]) => void;
   updateAttachment: (localId: string, patch: Partial<Attachment>) => void;
   removeAttachment: (localId: string) => void;
+  setOwnerId: (ownerId: string | null) => void;
+  /** Ключ заявки: создаётся при первой отправке и остаётся тем же при повторах. */
+  ensureRequestKey: () => string;
   reset: () => void;
 };
 
-const initial: DraftData = { category: null, description: '', residencyId: null, attachments: [] };
+const initial: DraftData = {
+  category: null,
+  description: '',
+  residencyId: null,
+  attachments: [],
+  ownerId: null,
+  requestKey: null,
+};
+
+function newRequestKey(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+}
 
 const STORAGE_KEY = 'konkrit.requestDraft';
 const WRITE_DELAY_MS = 500;
@@ -81,7 +99,7 @@ const debouncedStorage = {
  */
 export const useRequestDraft = create<DraftState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initial,
       setCategory: (category) => set({ category }),
       setDescription: (description) => set({ description }),
@@ -98,6 +116,14 @@ export const useRequestDraft = create<DraftState>()(
         set((state) => ({
           attachments: state.attachments.filter((item) => item.localId !== localId),
         })),
+      setOwnerId: (ownerId) => set({ ownerId }),
+      ensureRequestKey: () => {
+        const existing = get().requestKey;
+        if (existing) return existing;
+        const created = newRequestKey();
+        set({ requestKey: created });
+        return created;
+      },
       reset: () => set({ ...initial }),
     }),
     {
@@ -109,6 +135,8 @@ export const useRequestDraft = create<DraftState>()(
         description: state.description,
         residencyId: state.residencyId,
         attachments: state.attachments,
+        ownerId: state.ownerId,
+        requestKey: state.requestKey,
       }),
       // Запись не читается: форма пустая, повреждённая копия удаляется, жителю об этом не сообщаем.
       onRehydrateStorage: () => (_state, error) => {
@@ -124,6 +152,8 @@ export const useRequestDraft = create<DraftState>()(
           category: data.category ?? null,
           description: typeof data.description === 'string' ? data.description : '',
           residencyId: typeof data.residencyId === 'string' ? data.residencyId : null,
+          ownerId: typeof data.ownerId === 'string' ? data.ownerId : null,
+          requestKey: typeof data.requestKey === 'string' ? data.requestKey : null,
           attachments: (Array.isArray(data.attachments) ? data.attachments : []).map((item) =>
             item.status === 'uploading'
               ? { ...item, status: 'failed' as const, progress: 0, error: 'network' as const }
@@ -136,8 +166,15 @@ export const useRequestDraft = create<DraftState>()(
 );
 
 /** Форма «грязная»: есть что терять при выходе. */
-export function isDraftDirty(state: DraftData): boolean {
+export function isDraftDirty(
+  state: Pick<DraftData, 'category' | 'description' | 'attachments'>,
+): boolean {
   return (
     state.category !== null || state.description.trim().length > 0 || state.attachments.length > 0
   );
+}
+
+/** Стереть сохранённую копию и дождаться удаления. */
+export async function clearDraftStorage(): Promise<void> {
+  await debouncedStorage.removeItem(STORAGE_KEY);
 }

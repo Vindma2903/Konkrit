@@ -10,6 +10,7 @@ import {
   type UploadAttachmentInput,
 } from '@/api';
 import { createMockApi } from '@/api/mockApi';
+import { useSessionStore } from '@/features/auth/sessionStore';
 import { renderWithProviders } from '@/test/utils';
 
 import { useCreatedRequest } from '../createdRequestStore';
@@ -17,6 +18,12 @@ import { useRequestDraft, type Attachment } from '../draftStore';
 import { NewRequestScreen } from '../NewRequestScreen';
 import { setPickers, type PickedFile, type Pickers } from '../pickers';
 import { discardDraft } from '../uploader';
+
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+  deleteItemAsync: jest.fn(async () => undefined),
+}));
 
 jest.mock('expo-router', () => ({
   router: {
@@ -97,6 +104,7 @@ function pickers(overrides: Partial<Pickers> = {}) {
     pickFromGallery: jest.fn(),
     pickDocument: jest.fn(),
     fileExists: () => true,
+    deleteFile: jest.fn(),
     ...overrides,
   };
   setPickers(value);
@@ -157,6 +165,12 @@ async function pickGallery(files: PickedFile[]) {
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  useSessionStore.setState({
+    tokens: { accessToken: 'a', refreshToken: 'r' },
+    user: { id: 'user-1' },
+    hasResidency: true,
+  });
+
   jest.mocked(useLocalSearchParams).mockReturnValue({});
   jest.mocked(usePreventRemove).mockReturnValue(disablePrevention);
   discardDraft();
@@ -378,7 +392,7 @@ describe('S6, S7a: добавление вложений', () => {
     await openAttachSheet();
     await fireEvent.press(screen.getByTestId('attach-camera'));
 
-    expect(p.takeMedia).toHaveBeenCalledWith('any');
+    await waitFor(() => expect(p.takeMedia).toHaveBeenCalledWith('any'));
     expect(await screen.findByText('shot.jpg')).toBeOnTheScreen();
   });
 
@@ -675,6 +689,7 @@ describe('S8–S10: отправка', () => {
         description: HEATING_TEXT,
         residencyId: 'residency-1',
         attachmentIds: ['remote-1', 'remote-2'],
+        clientRequestId: expect.any(String),
       }),
     );
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/requests/sent'));

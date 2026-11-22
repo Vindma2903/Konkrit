@@ -3,10 +3,17 @@ import { router } from 'expo-router';
 
 import { ApiError, setApi, type ApiClient, type CreateRequestResult, type Residency } from '@/api';
 import { createMockApi } from '@/api/mockApi';
+import { useSessionStore } from '@/features/auth/sessionStore';
 import { renderWithProviders } from '@/test/utils';
 
 import { useRequestDraft } from '../draftStore';
 import { NewRequestScreen } from '../NewRequestScreen';
+
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+  deleteItemAsync: jest.fn(async () => undefined),
+}));
 
 jest.mock('expo-router', () => ({
   router: {
@@ -49,6 +56,12 @@ async function type(text: string) {
 describe('NewRequestScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useSessionStore.setState({
+      tokens: { accessToken: 'a', refreshToken: 'r' },
+      user: { id: 'user-1' },
+      hasResidency: true,
+    });
+
     useRequestDraft.getState().reset();
   });
 
@@ -246,6 +259,7 @@ describe('NewRequestScreen', () => {
           description: HEATING_TEXT,
           residencyId: 'residency-1',
           attachmentIds: [],
+          clientRequestId: expect.any(String),
         }),
       );
       await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/requests/sent'));

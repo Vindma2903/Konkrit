@@ -61,6 +61,8 @@ export type CreateRequestInput = {
   residencyId: string;
   /** Идентификаторы загруженных вложений. */
   attachmentIds: string[];
+  /** Ключ идемпотентности: повторная отправка с тем же ключом не создаёт вторую заявку. */
+  clientRequestId: string;
 };
 export type CreateRequestResult = {
   id: string;

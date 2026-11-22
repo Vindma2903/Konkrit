@@ -101,12 +101,13 @@ async function persistQuietly(value: Persisted | null) {
 }
 
 /** Данные предыдущего жителя не должны достаться следующему на этом устройстве. */
-function clearUserData() {
-  discardDraft();
+function clearUserData(): Promise<void> {
+  const draftCleared = discardDraft();
   createdRequestReset();
   useOnboardingStore.getState().reset();
   useLoginDraft.getState().reset();
   queryClient.clear();
+  return draftCleared;
 }
 
 /** Сессия жителя: токены лежат в защищённом хранилище, не в обычном. */
@@ -143,7 +144,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   async signOut() {
     set({ tokens: null, user: null, hasResidency: false });
-    clearUserData();
+    const userDataCleared = clearUserData();
     await persistQuietly(null);
+    // Приложение могут закрыть сразу после выхода: ждём, пока черновик стёрт с диска.
+    await userDataCleared;
   },
 }));

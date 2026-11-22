@@ -5,11 +5,12 @@ import type { PickedFile } from './pickers';
 const MB = 1024 * 1024;
 
 function hasAllowedDocumentType(file: PickedFile): boolean {
-  if (file.mimeType) {
-    return (attachmentLimits.documentMimeTypes as readonly string[]).includes(file.mimeType);
-  }
-  // Система не всегда сообщает тип: тогда смотрим на расширение.
-  return /\.(pdf|doc|docx)$/i.test(file.name);
+  // Провайдеры документов (облачные диски, мессенджеры) нередко отдают application/octet-stream,
+  // поэтому подходит файл, у которого совпал либо тип, либо расширение.
+  const byMime = file.mimeType
+    ? (attachmentLimits.documentMimeTypes as readonly string[]).includes(file.mimeType)
+    : false;
+  return byMime || /\.(pdf|doc|docx)$/i.test(file.name);
 }
 
 /** Сообщение, почему файл нельзя добавить; null — файл подходит. */
@@ -43,7 +44,7 @@ export function planAdd(files: PickedFile[], currentCount: number): AddPlan {
   const accepted = valid.slice(0, free);
   if (valid.length > free) {
     messages.push(
-      `Добавлено ${accepted.length} из ${valid.length}: максимум ${attachmentLimits.maxFiles} вложений`,
+      `Добавлено ${accepted.length} из ${files.length}: максимум ${attachmentLimits.maxFiles} вложений`,
     );
   }
   return { accepted, messages };

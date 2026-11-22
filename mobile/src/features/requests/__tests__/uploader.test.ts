@@ -41,6 +41,8 @@ const file = (name: string, kind: PickedFile['kind'] = 'image'): PickedFile => (
 const attachments = () => useRequestDraft.getState().attachments;
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+const deleteFile = jest.fn();
+
 describe('очередь загрузки вложений', () => {
   let exists = true;
 
@@ -51,6 +53,7 @@ describe('очередь загрузки вложений', () => {
       pickFromGallery: jest.fn(),
       pickDocument: jest.fn(),
       fileExists: () => exists,
+      deleteFile: deleteFile,
     });
     discardDraft();
     await flush();

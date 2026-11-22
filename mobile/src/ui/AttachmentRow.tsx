@@ -73,7 +73,11 @@ export function AttachmentRow({
             </Text>
           </View>
         ) : state.status === 'uploading' ? (
-          <View style={styles.statusRow}>
+          <View
+            accessible
+            accessibilityLabel={`${name}: загружается, ${Math.round(state.progress * 100)}%`}
+            style={styles.statusRow}
+          >
             <ProgressBar value={state.progress} testID={`${testID}-progress`} />
             <Text weight={700} size={12} color={colors.textMuted} testID={`${testID}-percent`}>
               {`${Math.round(state.progress * 100)}%`}

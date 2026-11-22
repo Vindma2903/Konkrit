@@ -111,3 +111,30 @@ describe('formatMb и plural', () => {
     expect(plural(0, forms)).toBe('файлов');
   });
 });
+
+describe('правки по ревью', () => {
+  it('документ с типом octet-stream принимается по расширению, а .exe отклоняется', () => {
+    const doc = (name: string): PickedFile => ({
+      uri: `file:///${name}`,
+      name,
+      mimeType: 'application/octet-stream',
+      size: MB,
+      kind: 'document',
+    });
+    expect(validateFile(doc('act.docx'))).toBeNull();
+    expect(validateFile(doc('act.pdf'))).toBeNull();
+    expect(validateFile(doc('virus.exe'))).toBe('virus.exe: такой тип файла не поддерживается');
+  });
+
+  it('в сообщении про лимит «из N» считаются все выбранные, а не только подошедшие', () => {
+    const files = [
+      image('big.jpg', 30 * MB),
+      ...['a', 'b', 'c', 'd'].map((n) => image(`${n}.jpg`)),
+    ];
+    const plan = planAdd(files, 8);
+    expect(plan.messages).toEqual([
+      'big.jpg: файл больше 20 МБ',
+      'Добавлено 2 из 5: максимум 10 вложений',
+    ]);
+  });
+});

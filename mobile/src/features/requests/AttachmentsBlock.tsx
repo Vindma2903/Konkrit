@@ -119,8 +119,8 @@ export function AttachmentsBlock({
         </Text>
       ) : null}
 
-      {messages.map((message) => (
-        <FieldError key={message} message={message} testID="attachments-message" />
+      {messages.map((message, index) => (
+        <FieldError key={`${index}-${message}`} message={message} testID="attachments-message" />
       ))}
 
       {permissionIssue ? (

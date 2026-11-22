@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/theme';
@@ -25,7 +25,11 @@ export function BottomSheet({ visible, title, onClose, children, testID }: Botto
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={styles.root}>
+      {/* Лист поднимается над клавиатурой (поиск в списке категорий). */}
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Закрыть"
@@ -45,7 +49,7 @@ export function BottomSheet({ visible, title, onClose, children, testID }: Botto
           </Text>
           {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

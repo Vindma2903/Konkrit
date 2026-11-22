@@ -1,7 +1,7 @@
 import { ApiError, getApi } from '@/api';
 import { attachmentLimits } from '@/config';
 
-import { useRequestDraft, type Attachment } from './draftStore';
+import { clearDraftStorage, useRequestDraft, type Attachment } from './draftStore';
 import { getPickers, type PickedFile } from './pickers';
 
 /**
@@ -12,6 +12,7 @@ const queue: string[] = [];
 const controllers = new Map<string, AbortController>();
 let running = 0;
 let sequence = 0;
+const PROGRESS_STEP = 0.05;
 
 const draft = () => useRequestDraft.getState();
 const find = (localId: string) => draft().attachments.find((item) => item.localId === localId);
@@ -42,7 +43,12 @@ async function run(localId: string) {
       file: { uri: item.uri, name: item.name, mimeType: item.mimeType, size: item.size },
       signal: controller.signal,
       onProgress: (progress) => {
-        if (find(localId)) draft().updateAttachment(localId, { progress });
+        // Прогресс приходит часто, а каждое обновление перерисовывает экран и пишет черновик:
+        // обновляем шагами не меньше 5%.
+        const current = find(localId);
+        if (current && progress - current.progress >= PROGRESS_STEP) {
+          draft().updateAttachment(localId, { progress });
+        }
       },
     });
     if (find(localId)) {
@@ -91,10 +97,12 @@ export function addAndUpload(files: PickedFile[]): Attachment[] {
 
 /** Отменить загрузку или удалить загруженный файл: он исчезает из списка. */
 export function removeAttachment(localId: string) {
+  const item = find(localId);
   const index = queue.indexOf(localId);
   if (index >= 0) queue.splice(index, 1);
   controllers.get(localId)?.abort();
   draft().removeAttachment(localId);
+  if (item) getPickers().deleteFile(item.uri);
 }
 
 /** Повторить загрузку одного файла. Если файл на устройстве исчез — остаётся с ошибкой. */
@@ -121,9 +129,14 @@ export function cancelAllUploads() {
   for (const controller of controllers.values()) controller.abort();
 }
 
-/** Удалить черновик целиком: загрузки, поля и сохранённую копию. */
-export function discardDraft() {
+/**
+ * Удалить черновик целиком: загрузки, поля, локальные копии файлов и сохранённую запись.
+ * Состояние очищается сразу; промис завершается, когда запись стёрта с диска.
+ */
+export function discardDraft(): Promise<void> {
   cancelAllUploads();
+  const { attachments } = draft();
   draft().reset();
-  useRequestDraft.persist.clearStorage();
+  for (const item of attachments) getPickers().deleteFile(item.uri);
+  return clearDraftStorage().catch(() => undefined);
 }

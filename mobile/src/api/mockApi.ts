@@ -3,6 +3,7 @@ import {
   ApiError,
   type ApiClient,
   type CreateRequestInput,
+  type CreateRequestResult,
   type House,
   type Residency,
   type SubmitResidencyInput,
@@ -48,6 +49,7 @@ export function createMockApi({ delayMs = 400, failUploadEvery }: MockApiOptions
   let counter = 0;
   let uploads = 0;
   let requests = 0;
+  const created = new Map<string, CreateRequestResult>();
   const nextId = (prefix: string) => `${prefix}-${(counter += 1)}`;
 
   return {
@@ -106,14 +108,19 @@ export function createMockApi({ delayMs = 400, failUploadEvery }: MockApiOptions
 
     async createRequest(input: CreateRequestInput) {
       await wait(delayMs);
+      // Повтор с тем же ключом возвращает ту же заявку, а не создаёт новую.
+      const existing = created.get(input.clientRequestId);
+      if (existing) return existing;
       requests += 1;
-      return {
+      const result: CreateRequestResult = {
         id: nextId('request'),
         number: 1000 + requests,
         createdAt: new Date().toISOString(),
         status: 'new' as const,
         answerWithinMin: 15,
       };
+      created.set(input.clientRequestId, result);
+      return result;
     },
 
     async getCategories() {

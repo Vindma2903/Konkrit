@@ -275,7 +275,7 @@ components:
         name: { type: string }
     RequestCreate:
       type: object
-      required: [categoryId, description, residencyId, attachmentIds]
+      required: [categoryId, description, residencyId, attachmentIds, clientRequestId]
       properties:
         categoryId: { type: string }
         description: { type: string, minLength: 10, maxLength: 500 }
@@ -285,6 +285,11 @@ components:
           maxItems: 10
           items: { type: string }
           description: Идентификаторы загруженных вложений
+        clientRequestId:
+          type: string
+          description: |
+            Ключ идемпотентности от клиента. Повторный запрос с тем же ключом возвращает ту же заявку,
+            а не создаёт новую (ответ мог потеряться по дороге).
     RequestCreated:
       type: object
       required: [id, number, createdAt, status, answerWithinMin]
