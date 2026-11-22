@@ -3,6 +3,7 @@ export { Chip } from './Chip';
 export { FieldError } from './FieldError';
 export { Icon, type IconName } from './Icon';
 export { LinkText } from './LinkText';
+export { Logo } from './Logo';
 export { OtpInput } from './OtpInput';
 export { RadioRow } from './RadioRow';
 export { Screen } from './Screen';
