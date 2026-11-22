@@ -1,3 +1,3 @@
-import { NewsScreen } from '@/features/home/NewsScreen';
+import { NewsScreen } from '@/features/news/NewsScreen';
 
 export default NewsScreen;

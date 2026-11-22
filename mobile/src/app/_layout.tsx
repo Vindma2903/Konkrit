@@ -89,6 +89,7 @@ export default function RootLayout() {
           <Stack.Screen name="requests/failed" options={{ gestureEnabled: false }} />
           <Stack.Screen name="requests/[id]" />
           <Stack.Screen name="chats/[id]" />
+          <Stack.Screen name="news/[id]" />
         </Stack.Protected>
       </Stack>
     </QueryClientProvider>
