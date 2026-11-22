@@ -32,6 +32,9 @@ describe('телефон', () => {
     expect(nationalDigits('89001234567')).toBe('9001234567');
     expect(nationalDigits('+7 900 123-45-67')).toBe('9001234567');
     expect(nationalDigits('9001234567')).toBe('9001234567');
+    // 10 цифр — номер без кода, даже если код города начинается на 8 или 7
+    expect(nationalDigits('8122345678')).toBe('8122345678');
+    expect(nationalDigits('7122345678')).toBe('7122345678');
   });
 
   it('форматирует по мере ввода', () => {

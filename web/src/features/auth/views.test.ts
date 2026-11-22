@@ -43,19 +43,21 @@ describe('вход', () => {
 
   it('возвращает на внутренний next и игнорирует внешний', async () => {
     const inner = await mountApp('/login?next=/requests');
+    const replace = vi.spyOn(inner.router, 'replace');
     await type(inner.wrapper, 'Электронная почта', 'dispatcher@uk.ru');
     await type(inner.wrapper, 'Пароль', 'Password1');
     await submit(inner.wrapper);
-    // маршрута /requests пока нет — он уходит в кабинет, но next принят как внутренний
-    expect(inner.router.currentRoute.value.name).toBe('cabinet');
+    expect(replace).toHaveBeenCalledWith('/requests');
     inner.wrapper.unmount();
     sessionStorage.clear();
     localStorage.clear();
     const outer = await mountApp('/login?next=//evil.example');
+    const replaceOuter = vi.spyOn(outer.router, 'replace');
     await type(outer.wrapper, 'Электронная почта', 'dispatcher@uk.ru');
     await type(outer.wrapper, 'Пароль', 'Password1');
     await submit(outer.wrapper);
-    expect(outer.router.currentRoute.value.fullPath).toBe('/');
+    expect(replaceOuter).toHaveBeenCalledWith('/');
+    expect(replaceOuter).not.toHaveBeenCalledWith('//evil.example');
   });
 
   it('неверный пароль: сообщение, пароль и почта остаются', async () => {
@@ -255,7 +257,15 @@ describe('регистрация', () => {
 });
 
 describe('восстановление пароля', () => {
-  it('проверяет почту, подставляет почту со входа', async () => {
+  it('почта, введённая на входе, подставляется в форму восстановления', async () => {
+    const { wrapper } = await mountApp('/login');
+    await type(wrapper, 'Электронная почта', 'dispatcher@uk.ru');
+    await wrapper.findAll('a.link').find((l) => l.text() === 'Забыли пароль?')!.trigger('click');
+    await vi.waitFor(() => expect(wrapper.text()).toContain('Восстановление пароля'));
+    expect((findInput(wrapper, 'Электронная почта').element as HTMLInputElement).value).toBe('dispatcher@uk.ru');
+  });
+
+  it('проверяет формат и пустоту почты', async () => {
     const forgot = vi.fn();
     const { wrapper } = await mountApp('/forgot', spyApi({ forgotPassword: forgot }));
     await submit(wrapper);
@@ -374,6 +384,13 @@ describe('новый пароль', () => {
     await submit(wrapper);
     expect(router.currentRoute.value.name).toBe('login');
     expect(wrapper.text()).toContain('Пароль изменён. Войдите с новым паролем');
+    // сообщение показывается один раз, а данные письма восстановления очищены
+    expect(sessionStorage.getItem('staff-recovery')).toBeNull();
+    await router.push('/register');
+    await router.push('/login');
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('login'));
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('Пароль изменён');
   });
 
   it('использованная или просроченная ссылка показывает «Ссылка больше не действует»', async () => {

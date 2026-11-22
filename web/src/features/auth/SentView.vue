@@ -47,7 +47,8 @@ async function resend() {
 }
 
 function openDemo() {
-  void router.push({ name: 'reset', query: { token: 'demo' } });
+  // Только для разработки с моком; в релизной сборке тело функции вырезается
+  if (import.meta.env.DEV) void router.push({ name: 'reset', query: { token: 'demo' } });
 }
 </script>
 

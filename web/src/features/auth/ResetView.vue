@@ -41,6 +41,7 @@ async function submit() {
   submitting.value = true;
   try {
     await getApi().resetPassword({ token, password: password.value });
+    flow.setRecovery(null);
     flow.notice = 'Пароль изменён. Войдите с новым паролем';
     await router.replace({ name: 'login' });
   } catch (error) {

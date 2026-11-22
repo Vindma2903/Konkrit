@@ -13,7 +13,9 @@ export function isFullName(value: string): boolean {
 /** Цифры российского номера без кода страны: до 10 штук. */
 export function nationalDigits(raw: string): string {
   let digits = raw.replace(/\D/g, '');
-  if (digits.length > 0 && (digits[0] === '7' || digits[0] === '8')) digits = digits.slice(1);
+  // Код страны срезаем у номера с «+» или из 11 цифр; 10 цифр — это уже номер без кода (812…, 800…)
+  const hasCountryCode = raw.trim().startsWith('+') || digits.length >= 11;
+  if (hasCountryCode && (digits[0] === '7' || digits[0] === '8')) digits = digits.slice(1);
   return digits.slice(0, 10);
 }
 

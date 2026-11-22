@@ -28,7 +28,9 @@ const notice = flow.takeNotice();
 const now = useNow();
 const remaining = computed(() => Math.max(0, Math.ceil((blockedUntil.value - now.value) / 1000)));
 const blocked = computed(() => remaining.value > 0);
-const message = computed(() => (blocked.value ? rateLimitMessage(remaining.value) : formError.value));
+const limitMessage = ref('');
+// Текст фиксируется в момент блокировки, чтобы скринридер не зачитывал его заново при каждом тике
+const message = computed(() => (blocked.value ? limitMessage.value : formError.value));
 
 function validate(): boolean {
   const next: typeof errors.value = {};
@@ -49,6 +51,7 @@ async function submit() {
   submitting.value = true;
   try {
     await session.login({ email: email.value.trim(), password: password.value, remember: remember.value });
+    flow.setRecovery(null);
     await router.replace(safeNext(route.query.next) ?? '/');
   } catch (error) {
     if (error instanceof ApiError) {
@@ -74,6 +77,7 @@ async function submit() {
         return;
       }
       if (error.code === 'rate_limited') {
+        limitMessage.value = rateLimitMessage(error.retryAfterSec ?? 60);
         blockedUntil.value = Date.now() + (error.retryAfterSec ?? 60) * 1000;
         now.value = Date.now();
         return;

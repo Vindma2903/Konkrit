@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { getApi, type LoginInput, type StaffSession } from '@/api';
+import { ApiError, getApi, type LoginInput, type StaffSession } from '@/api';
 
 /** Сессия сотрудника. Access-токен хранится только в памяти, refresh — в HttpOnly-куке. */
 export const useSessionStore = defineStore('session', () => {
@@ -21,24 +21,24 @@ export const useSessionStore = defineStore('session', () => {
       .then((value) => {
         session.value = value;
       })
-      .catch(() => {
+      .then(() => {
+        restored.value = true;
+      })
+      .catch((error: unknown) => {
         session.value = null;
+        // Нет куки — окончательно «не вошёл»; сбой сети или сервера — попробуем снова при следующем переходе
+        if (error instanceof ApiError && error.code === 'unauthorized') restored.value = true;
       })
       .finally(() => {
-        restored.value = true;
         restoring = null;
       });
     return restoring;
   }
 
+  /** Сессия закрывается только после ответа сервера: иначе refresh-кука осталась бы живой. */
   async function logout() {
-    const token = session.value?.accessToken ?? null;
+    await getApi().logout(session.value?.accessToken ?? null);
     session.value = null;
-    try {
-      await getApi().logout(token);
-    } catch {
-      // локально сессия уже закрыта; сервер сбросит куку по истечении срока
-    }
   }
 
   /** Сервер отказал по токену и обновить его не удалось. */

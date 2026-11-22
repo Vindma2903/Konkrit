@@ -32,7 +32,6 @@ const shown = ref(false);
         type="button"
         class="icon-btn"
         :aria-label="shown ? 'Скрыть пароль' : 'Показать пароль'"
-        :aria-pressed="shown"
         @click="shown = !shown"
       >
         <Icon :name="shown ? 'eyeOff' : 'eye'" />

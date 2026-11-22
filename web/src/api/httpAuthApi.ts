@@ -12,6 +12,9 @@ const KNOWN: ApiErrorCode[] = [
   'unauthorized',
 ];
 
+/** Без ответа дольше этого срока запрос считается оборвавшимся. */
+const TIMEOUT_MS = 15_000;
+
 type ErrorBody = {
   code?: string;
   message?: string;
@@ -23,6 +26,8 @@ type ErrorBody = {
 export function createHttpAuthApi(baseUrl: string = import.meta.env.VITE_API_URL ?? '/v1'): StaffAuthApi {
   async function call<T>(path: string, body?: unknown, accessToken?: string | null): Promise<T> {
     let response: Response;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       response = await fetch(`${baseUrl}/staff/auth${path}`, {
         method: 'POST',
@@ -32,9 +37,12 @@ export function createHttpAuthApi(baseUrl: string = import.meta.env.VITE_API_URL
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
       });
     } catch {
       throw new ApiError('network');
+    } finally {
+      clearTimeout(timer);
     }
     if (response.ok) {
       if (response.status === 204) return undefined as T;
