@@ -24,6 +24,7 @@ type TextFieldProps = Pick<
   | 'onFocus'
   | 'maxLength'
   | 'textContentType'
+  | 'editable'
 > & {
   label: string;
   hint?: string;

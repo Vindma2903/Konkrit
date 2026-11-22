@@ -1,44 +1,120 @@
-import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Redirect, router } from 'expo-router';
+import { useEffect } from 'react';
+import { BackHandler, StyleSheet, View } from 'react-native';
 
-import { colors } from '@/theme';
+import { formatDateTime } from '@/lib/dateTime';
+import { colors, radius } from '@/theme';
 import { Button, Icon, Screen, Text } from '@/ui';
 
-/** Заглушка после отправки заявки: экраны S8–S11 — отдельное изменение. */
+import { useCreatedRequest } from './createdRequestStore';
+
+/** Экран «Заявка создана» (макет S9). Данные берёт из итога последней отправки. */
 export function RequestSentScreen() {
+  const summary = useCreatedRequest((state) => state.summary);
+
+  // Заявка уже создана: «Назад» ведёт на главную, а не в пустую форму.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.dismissTo('/home');
+      return true;
+    });
+    return () => subscription.remove();
+  }, []);
+
+  if (!summary) return <Redirect href="/home" />;
+
   return (
     <Screen
       footer={
-        <Button
-          title="На главную"
-          onPress={() => router.dismissTo('/home')}
-          testID="request-sent-home"
-        />
+        <>
+          <Button
+            title="Открыть заявку"
+            onPress={() =>
+              router.replace({
+                pathname: '/requests/details',
+                params: { number: String(summary.number) },
+              })
+            }
+            testID="request-sent-open"
+          />
+          <Button
+            title="На главную"
+            variant="secondary"
+            onPress={() => router.dismissTo('/home')}
+            testID="request-sent-home"
+          />
+        </>
       }
     >
       <View style={styles.body}>
         <View style={styles.badge}>
-          <Icon name="check" size={32} color={colors.onAccent} strokeWidth={2.4} />
+          <Icon name="check" size={44} color={colors.success} />
         </View>
-        <Text weight={800} size={24} lineHeight={30} accessibilityRole="header">
-          Заявка отправлена
-        </Text>
-        <Text size={15} color={colors.textMuted} lineHeight={22}>
-          Заявку получит диспетчер. Статус придёт в MAX и push.
-        </Text>
+        <View style={styles.texts}>
+          <Text
+            weight={800}
+            size={24}
+            lineHeight={29}
+            accessibilityRole="header"
+            style={styles.center}
+          >
+            {`Заявка № ${summary.number} создана`}
+          </Text>
+          <Text size={14} color={colors.textMuted} lineHeight={21} style={styles.center}>
+            Мы уведомим вас в MAX и push, когда статус изменится.
+          </Text>
+        </View>
+
+        <View style={styles.card} testID="request-sent-card">
+          <View style={styles.cardTop}>
+            <Text weight={600} size={12} color={colors.textMuted}>
+              {formatDateTime(summary.createdAt)}
+            </Text>
+            <View style={styles.status}>
+              <Text weight={700} size={12} color="#1F4E9E">
+                Новая
+              </Text>
+            </View>
+          </View>
+          <Text weight={700} size={16}>
+            {summary.categoryName}
+          </Text>
+          <Text size={13} color={colors.textMuted}>
+            {summary.address}
+          </Text>
+          <Text weight={600} size={13} color={colors.accentText}>
+            {`Диспетчер ответит в течение ${summary.answerWithinMin} мин`}
+          </Text>
+        </View>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { gap: 16, paddingTop: 80, alignItems: 'flex-start' },
+  body: { alignItems: 'center', gap: 20, paddingTop: 48 },
   badge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.success,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#DDF3E4',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  texts: { gap: 8, alignItems: 'center' },
+  center: { textAlign: 'center' },
+  card: {
+    alignSelf: 'stretch',
+    padding: 16,
+    gap: 10,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  status: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    backgroundColor: '#E3EEFF',
   },
 });

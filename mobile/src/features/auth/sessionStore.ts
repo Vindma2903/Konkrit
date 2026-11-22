@@ -3,7 +3,8 @@ import { create } from 'zustand';
 
 import type { User } from '@/api';
 import { useOnboardingStore } from '@/features/onboarding/onboardingStore';
-import { useRequestDraft } from '@/features/requests/draftStore';
+import { createdRequestReset } from '@/features/requests/createdRequestStore';
+import { discardDraft } from '@/features/requests/uploader';
 import { queryClient } from '@/lib/queryClient';
 
 import { useLoginDraft } from './loginDraftStore';
@@ -101,7 +102,8 @@ async function persistQuietly(value: Persisted | null) {
 
 /** Данные предыдущего жителя не должны достаться следующему на этом устройстве. */
 function clearUserData() {
-  useRequestDraft.getState().reset();
+  discardDraft();
+  createdRequestReset();
   useOnboardingStore.getState().reset();
   useLoginDraft.getState().reset();
   queryClient.clear();

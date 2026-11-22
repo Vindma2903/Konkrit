@@ -8,8 +8,16 @@ import { useRequestDraft } from '../draftStore';
 import { NewRequestScreen } from '../NewRequestScreen';
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
+  router: {
+    push: jest.fn(),
+    back: jest.fn(),
+    replace: jest.fn(),
+    dismissTo: jest.fn(),
+    canGoBack: jest.fn(() => true),
+  },
   Redirect: jest.fn(() => null),
+  useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }));
 
 const residency: Residency = {
@@ -25,7 +33,7 @@ function fakeApi(overrides: Partial<ApiClient> = {}): ApiClient {
   return { ...createMockApi({ delayMs: 0 }), ...overrides };
 }
 
-const submit = () => screen.getByRole('button', { name: 'Отправить заявку' });
+const submit = () => screen.getByTestId('request-submit');
 
 describe('NewRequestScreen: привязка квартиры', () => {
   beforeEach(() => {

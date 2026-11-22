@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -32,6 +32,7 @@ export function ApartmentScreen() {
   const markResidency = useSessionStore((state) => state.markResidency);
   const [accountTouched, setAccountTouched] = useState(false);
   const runOnce = useSingleFlight();
+  const queryClient = useQueryClient();
 
   const submit = useMutation({
     mutationFn: () =>
@@ -43,6 +44,8 @@ export function ApartmentScreen() {
         verification,
       }),
     onSuccess: async () => {
+      // Новая привязка должна появиться в списке адресов заявки.
+      void queryClient.invalidateQueries({ queryKey: ['residencies'] });
       await markResidency();
       router.replace('/residency-sent');
     },
