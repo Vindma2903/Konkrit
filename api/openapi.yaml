@@ -14,6 +14,7 @@ tags:
   - name: auth
   - name: onboarding
   - name: requests
+  - name: community
 paths:
   /auth/code/request:
     post:
@@ -172,6 +173,114 @@ paths:
                 oneOf:
                   - $ref: '#/components/schemas/Category'
                   - type: 'null'
+  /chats:
+    get:
+      tags: [community]
+      summary: Чаты жителя — чат с УК и чаты дома, с последним сообщением и признаком непрочитанного
+      responses:
+        '200':
+          description: Чаты
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Conversation' }
+  /chats/{id}:
+    get:
+      tags: [community]
+      summary: Один чат
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Чат
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Conversation' }
+        '404':
+          description: Чата нет (not_found)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /chats/{id}/messages:
+    get:
+      tags: [community]
+      summary: Сообщения чата по порядку
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Сообщения
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ChatMessage' }
+    post:
+      tags: [community]
+      summary: Отправить сообщение или вложение в чат
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MessageCreate' }
+      responses:
+        '201':
+          description: Сообщение создано (повтор с тем же clientMessageId возвращает то же)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatMessage' }
+  /chats/{id}/read:
+    post:
+      tags: [community]
+      summary: Отметить чат прочитанным
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '204':
+          description: Отмечено
+  /news:
+    get:
+      tags: [community]
+      summary: Новости или объявления дома, новые сверху, по страницам
+      parameters:
+        - { name: kind, in: query, required: true, schema: { type: string, enum: [news, announcement] } }
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: Страница
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NewsPage' }
+  /news/{id}:
+    get:
+      tags: [community]
+      summary: Новость целиком
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Новость
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NewsDetails' }
+        '404':
+          description: Новости нет (not_found)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /me:
+    get:
+      tags: [community]
+      summary: Профиль жителя для вкладки «Профиль»
+      responses:
+        '200':
+          description: Профиль (поля могут отсутствовать)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
   /requests:
     get:
       tags: [requests]
@@ -468,6 +577,51 @@ components:
         text: { type: string }
         attachment: { $ref: '#/components/schemas/MessageAttachment' }
         createdAt: { type: string, format: date-time }
+    Conversation:
+      type: object
+      required: [id, kind, title, last, unread]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [management, house, entrance, council, neighbors] }
+        title: { type: string }
+        subtitle: { type: string, description: Название УК или адрес дома }
+        last:
+          type: [object, 'null']
+          required: [authorName, text, at]
+          properties:
+            authorName: { type: string }
+            text: { type: string }
+            at: { type: string, format: date-time }
+        unread: { type: boolean }
+    NewsItem:
+      type: object
+      required: [id, kind, title, preview, date]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [news, announcement] }
+        title: { type: string }
+        preview: { type: string }
+        date: { type: string, format: date-time }
+        imageUrl: { type: string }
+    NewsDetails:
+      allOf:
+        - { $ref: '#/components/schemas/NewsItem' }
+        - type: object
+          required: [body]
+          properties:
+            body: { type: array, items: { type: string }, description: Абзацы текста }
+    NewsPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/NewsItem' } }
+        nextCursor: { type: [string, 'null'] }
+    Profile:
+      type: object
+      properties:
+        name: { type: string }
+        address: { type: string }
+        apartment: { type: string }
     MessageCreate:
       type: object
       required: [clientMessageId]

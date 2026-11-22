@@ -4,10 +4,10 @@
 без ошибок.
 
 ## 1. Контракт и данные
-- [ ] 1.1 `api/openapi.yaml`: чаты, сообщения чатов, отметка прочитанного, новости, профиль
-- [ ] 1.2 Типы и `ApiClient`: `listConversations`, `listChatMessages`, `sendChatMessage`, `markChatRead`, `listNews`, `getNews`, `getProfile`
-- [ ] 1.3 Мок: четыре чата дома и «Чат с УК» с перепиской и непрочитанным, новости и объявления, профиль
-- [ ] 1.4 Тесты мока
+- [x] 1.1 `api/openapi.yaml`: чаты, сообщения чатов, отметка прочитанного, новости, профиль
+- [x] 1.2 Типы и `ApiClient`: `listConversations`, `listChatMessages`, `sendChatMessage`, `markChatRead`, `listNews`, `getNews`, `getProfile`
+- [x] 1.3 Мок: четыре чата дома и «Чат с УК» с перепиской и непрочитанным, новости и объявления, профиль
+- [x] 1.4 Тесты мока
 
 ## 2. Общая очередь сообщений (spec: conversation)
 - [ ] 2.1 Обобщить `outbox` до канала (`request:<id>`, `chat:<id>`), `useRequestChat` → `useChannelChat`
