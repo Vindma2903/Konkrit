@@ -52,12 +52,12 @@ describe('каналы очереди сообщений', () => {
         sendMessage: real.sendMessage,
       }),
     );
-    enqueueMessage(chatChannel('uk'), { text: 'не уйдёт' });
+    enqueueMessage(chatChannel('management'), { text: 'не уйдёт' });
     enqueueMessage(requestChannel('request-seed-3'), { text: 'уйдёт' });
     await flush();
     await flush();
     const state = useChatOutbox.getState().byChannel;
-    expect(state[chatChannel('uk')]?.[0]?.status).toBe('failed');
+    expect(state[chatChannel('management')]?.[0]?.status).toBe('failed');
     expect(state[requestChannel('request-seed-3')]).toEqual([]);
   });
 
@@ -68,24 +68,24 @@ describe('каналы очереди сообщений', () => {
       fail ? Promise.reject(new ApiError('network')) : real.sendChatMessage(id, input),
     );
     setApi(api({ sendChatMessage }));
-    enqueueMessage(chatChannel('uk'), { text: 'ещё раз' });
+    enqueueMessage(chatChannel('management'), { text: 'ещё раз' });
     await flush();
     await flush();
-    const [item] = useChatOutbox.getState().byChannel[chatChannel('uk')] ?? [];
+    const [item] = useChatOutbox.getState().byChannel[chatChannel('management')] ?? [];
     expect(item?.status).toBe('failed');
     fail = false;
-    retryMessage(chatChannel('uk'), item?.clientMessageId ?? '');
+    retryMessage(chatChannel('management'), item?.clientMessageId ?? '');
     await flush();
     await flush();
     const keys = sendChatMessage.mock.calls.map((call) => call[1].clientMessageId);
     expect(new Set(keys).size).toBe(1);
-    const messages = await real.listChatMessages('uk');
+    const messages = await real.listChatMessages('management');
     expect(messages.filter((message) => message.text === 'ещё раз')).toHaveLength(1);
   });
 
   it('выход стирает очередь всех каналов', async () => {
     setApi(api({ sendChatMessage: () => Promise.reject(new ApiError('network')) }));
-    enqueueMessage(chatChannel('uk'), { text: 'a' });
+    enqueueMessage(chatChannel('management'), { text: 'a' });
     await flush();
     await flush();
     resetOutbox();

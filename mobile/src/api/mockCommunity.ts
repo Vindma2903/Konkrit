@@ -102,7 +102,7 @@ export function createMockCommunity({ pageSize = 20 }: { pageSize?: number } = {
       messages: [message(6000, 'Отдам детскую кроватку, самовывоз.', neighbor('Олег Новиков'))],
     },
     {
-      id: 'uk',
+      id: 'management',
       kind: 'management',
       title: 'Чат с УК',
       subtitle: 'УК «Тест-Сервис»',

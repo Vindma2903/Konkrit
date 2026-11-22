@@ -22,7 +22,7 @@ describe('mockApi: чаты', () => {
 
   it('последнее сообщение чата — в карточке, свои — «Вы»', async () => {
     const api = newApi();
-    const uk = (await api.listConversations()).find((chat) => chat.id === 'uk');
+    const uk = (await api.listConversations()).find((chat) => chat.id === 'management');
     expect(uk?.last?.authorName).toBe('Вы');
     expect(uk?.last?.text).toBe('Отправил фото.');
   });
@@ -47,7 +47,7 @@ describe('mockApi: чаты', () => {
   it('один ключ в разных чатах — разные сообщения', async () => {
     const api = newApi();
     const a = await api.sendChatMessage('house-all', { clientMessageId: 'same', text: 'a' });
-    const b = await api.sendChatMessage('uk', { clientMessageId: 'same', text: 'b' });
+    const b = await api.sendChatMessage('management', { clientMessageId: 'same', text: 'b' });
     expect(a.id).not.toBe(b.id);
   });
 
@@ -56,9 +56,9 @@ describe('mockApi: чаты', () => {
     const { id } = await api.uploadAttachment({
       file: { uri: 'file:///a.jpg', name: 'a.jpg', mimeType: 'image/jpeg', size: 10 },
     });
-    const message = await api.sendChatMessage('uk', { clientMessageId: 'f1', attachmentIds: [id] });
+    const message = await api.sendChatMessage('management', { clientMessageId: 'f1', attachmentIds: [id] });
     expect(message.attachment).toMatchObject({ kind: 'image', name: 'a.jpg' });
-    const chat = await api.getConversation('uk');
+    const chat = await api.getConversation('management');
     expect(chat.last?.text).toBe('Вложение');
   });
 
