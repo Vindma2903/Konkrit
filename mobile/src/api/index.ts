@@ -22,7 +22,9 @@ export function getApi(): ApiClient {
     // и мок с тестовыми токенами и кодом не попадает в бандл.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createMockApi } = require('./mockApi') as typeof import('./mockApi');
-    current = createMockApi();
+    current = createMockApi({
+      failUploadEvery: Constants.expoConfig?.extra?.mockUploadFailures === true ? 3 : undefined,
+    });
     return current;
   }
   throw new Error(

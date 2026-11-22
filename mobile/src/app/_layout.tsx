@@ -10,10 +10,11 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { AppState, StyleSheet, Text, View } from 'react-native';
 
 import { getApi } from '@/api';
 import { useSessionStore } from '@/features/auth/sessionStore';
+import { flushDraftWrites } from '@/features/requests/draftStore';
 import { queryClient } from '@/lib/queryClient';
 import { colors } from '@/theme';
 
@@ -41,6 +42,14 @@ export default function RootLayout() {
 
   useEffect(() => {
     void useSessionStore.getState().hydrate();
+  }, []);
+
+  // Приложение уходит в фон: сохраняем черновик сразу, не дожидаясь задержки записи.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') void flushDraftWrites().catch(() => undefined);
+    });
+    return () => subscription.remove();
   }, []);
 
   // Если шрифт не загрузился, работаем на системном: застрять на заставке хуже.
@@ -76,7 +85,9 @@ export default function RootLayout() {
           <Stack.Screen name="residency-sent" />
           <Stack.Screen name="home" />
           <Stack.Screen name="requests/new" />
-          <Stack.Screen name="requests/sent" />
+          <Stack.Screen name="requests/sent" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="requests/failed" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="requests/details" />
         </Stack.Protected>
       </Stack>
     </QueryClientProvider>

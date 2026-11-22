@@ -1,16 +1,31 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
-import { setApi, type ApiClient, type Residency } from '@/api';
+import { ApiError, setApi, type ApiClient, type CreateRequestResult, type Residency } from '@/api';
 import { createMockApi } from '@/api/mockApi';
+import { useSessionStore } from '@/features/auth/sessionStore';
 import { renderWithProviders } from '@/test/utils';
 
 import { useRequestDraft } from '../draftStore';
 import { NewRequestScreen } from '../NewRequestScreen';
 
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async () => null),
+  setItemAsync: jest.fn(async () => undefined),
+  deleteItemAsync: jest.fn(async () => undefined),
+}));
+
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
+  router: {
+    push: jest.fn(),
+    back: jest.fn(),
+    replace: jest.fn(),
+    dismissTo: jest.fn(),
+    canGoBack: jest.fn(() => true),
+  },
   Redirect: jest.fn(() => null),
+  useLocalSearchParams: jest.fn(() => ({})),
+  usePreventRemove: jest.fn(() => jest.fn()),
 }));
 
 const residency: Residency = {
@@ -19,6 +34,7 @@ const residency: Residency = {
   address: 'г. Оренбург, ул. Тестовая, д. 1',
   apartment: '12',
   status: 'confirmed',
+  primary: true,
 };
 
 function fakeApi(overrides: Partial<ApiClient> = {}): ApiClient {
@@ -29,7 +45,7 @@ function fakeApi(overrides: Partial<ApiClient> = {}): ApiClient {
   };
 }
 
-const submit = () => screen.getByRole('button', { name: 'Отправить заявку' });
+const submit = () => screen.getByTestId('request-submit');
 const description = () => screen.getByTestId('request-description');
 const HEATING_TEXT = 'Нет отопления во всей квартире с утра';
 
@@ -40,6 +56,12 @@ async function type(text: string) {
 describe('NewRequestScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    useSessionStore.setState({
+      tokens: { accessToken: 'a', refreshToken: 'r' },
+      user: { id: 'user-1' },
+      hasResidency: true,
+    });
+
     useRequestDraft.getState().reset();
   });
 
@@ -219,7 +241,13 @@ describe('NewRequestScreen', () => {
     }
 
     it('шлёт категорию, описание без пробелов по краям и привязку, очищает черновик', async () => {
-      const createRequest = jest.fn().mockResolvedValue({ id: 'request-1' });
+      const createRequest = jest.fn().mockResolvedValue({
+        id: 'request-1',
+        number: 1001,
+        createdAt: '2026-11-22T10:00:00.000Z',
+        status: 'new' as const,
+        answerWithinMin: 15,
+      });
       setApi(fakeApi({ createRequest }));
       await fillValid();
 
@@ -230,6 +258,8 @@ describe('NewRequestScreen', () => {
           categoryId: 'heating',
           description: HEATING_TEXT,
           residencyId: 'residency-1',
+          attachmentIds: [],
+          clientRequestId: expect.any(String),
         }),
       );
       await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/requests/sent'));
@@ -237,7 +267,7 @@ describe('NewRequestScreen', () => {
     });
 
     it('двойное нажатие отправляет один запрос', async () => {
-      const createRequest = jest.fn(() => new Promise<{ id: string }>(() => undefined));
+      const createRequest = jest.fn(() => new Promise<CreateRequestResult>(() => undefined));
       setApi(fakeApi({ createRequest }));
       await fillValid();
 
@@ -247,19 +277,36 @@ describe('NewRequestScreen', () => {
       expect(createRequest).toHaveBeenCalledTimes(1);
     });
 
-    it('при ошибке сохраняет введённое и показывает сообщение', async () => {
+    it('при ошибке сети сохраняет черновик и открывает экран «Не удалось отправить»', async () => {
       const createRequest = jest.fn().mockRejectedValue(new Error('network'));
       setApi(fakeApi({ createRequest }));
       await fillValid();
 
       await fireEvent.press(submit());
 
-      expect(
-        await screen.findByText('Не удалось отправить заявку. Попробуйте снова'),
-      ).toBeOnTheScreen();
-      expect(router.replace).not.toHaveBeenCalled();
+      await waitFor(() =>
+        expect(router.replace).toHaveBeenCalledWith({
+          pathname: '/requests/failed',
+          params: { reason: 'network' },
+        }),
+      );
       expect(useRequestDraft.getState().description).toContain('Нет отопления');
-      expect(submit()).toBeEnabled();
+      expect(useRequestDraft.getState().category?.id).toBe('heating');
+    });
+
+    it('если сервер не принял заявку, причина «rejected»', async () => {
+      const createRequest = jest.fn().mockRejectedValue(new ApiError('validation'));
+      setApi(fakeApi({ createRequest }));
+      await fillValid();
+
+      await fireEvent.press(submit());
+
+      await waitFor(() =>
+        expect(router.replace).toHaveBeenCalledWith({
+          pathname: '/requests/failed',
+          params: { reason: 'rejected' },
+        }),
+      );
     });
   });
 

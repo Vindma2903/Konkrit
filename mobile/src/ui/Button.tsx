@@ -2,6 +2,7 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
+  View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -15,8 +16,10 @@ type ButtonProps = {
   onPress?: () => void;
   disabled?: boolean;
   loading?: boolean;
-  /** secondary — белая кнопка для второстепенных действий. */
-  variant?: 'primary' | 'secondary';
+  /** Подпись во время загрузки («Отправляем…»): рядом со спиннером; без неё виден только спиннер. */
+  loadingLabel?: string;
+  /** secondary — белая кнопка; danger — белая с красным текстом (удаление). */
+  variant?: 'primary' | 'secondary' | 'danger';
   testID?: string;
   style?: StyleProp<ViewStyle>;
 };
@@ -27,36 +30,48 @@ export function Button({
   onPress,
   disabled = false,
   loading = false,
+  loadingLabel,
   variant = 'primary',
   testID,
   style,
 }: ButtonProps) {
   const inactive = disabled || loading;
+  const light = variant !== 'primary';
+  const textColor = disabled
+    ? colors.disabledText
+    : variant === 'danger'
+      ? colors.error
+      : variant === 'secondary'
+        ? colors.text
+        : colors.onAccent;
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={loading && loadingLabel ? loadingLabel : title}
       accessibilityState={{ disabled: inactive, busy: loading }}
       disabled={inactive}
       onPress={onPress}
       testID={testID}
       style={({ pressed }) => [
         styles.base,
-        disabled ? styles.disabled : variant === 'secondary' ? styles.secondary : styles.active,
+        disabled ? styles.disabled : light ? styles.light : styles.active,
+        loading && loadingLabel ? styles.loadingDim : null,
         pressed && !inactive && styles.pressed,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'secondary' ? colors.accent : colors.onAccent} />
+        <View style={styles.loadingRow}>
+          <ActivityIndicator color={light ? colors.accent : colors.onAccent} />
+          {loadingLabel ? (
+            <Text weight={700} size={16} color={light ? colors.text : colors.onAccent}>
+              {loadingLabel}
+            </Text>
+          ) : null}
+        </View>
       ) : (
-        <Text
-          weight={700}
-          size={16}
-          color={
-            disabled ? colors.disabledText : variant === 'secondary' ? colors.text : colors.onAccent
-          }
-        >
+        <Text weight={700} size={16} color={textColor}>
           {title}
         </Text>
       )}
@@ -73,7 +88,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   active: { backgroundColor: colors.accent },
-  secondary: { backgroundColor: colors.surface },
+  light: { backgroundColor: colors.surface },
   disabled: { backgroundColor: colors.disabledBg },
+  loadingDim: { opacity: 0.9 },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pressed: { opacity: 0.85 },
 });

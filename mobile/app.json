@@ -30,11 +30,20 @@
           "backgroundColor": "#F4F4F2"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Конкрит использует ваши фото, чтобы вы могли приложить их к заявке.",
+          "cameraPermission": "Конкрит использует камеру, чтобы вы могли приложить фото или видео к заявке.",
+          "microphonePermission": "Конкрит использует микрофон для записи звука в видео к заявке."
+        }
+      ]
     ],
     "scheme": "konkrit",
     "extra": {
-      "useMockApi": true
+      "useMockApi": true,
+      "mockUploadFailures": false
     }
   }
 }
