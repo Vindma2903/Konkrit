@@ -12,7 +12,7 @@
 | Иконки | `react-native-svg` | Иконки макета — это stroke-SVG 24×24, перерисовываем 1:1 |
 | Шрифт | `@expo-google-fonts/montserrat` (500, 600, 700, 800) | Как в макете |
 | Токены | `expo-secure-store` | Хранение access/refresh токенов |
-| Тесты | Jest + `@testing-library/react-native` | Валидация, маски, поведение экранов |
+| Тесты | Jest (jest-expo) + `@testing-library/react-native` 14 (асинхронный `render`, пакет `test-renderer`) | Валидация, маски, поведение экранов |
 
 Версии пакетов не фиксируем в спеке: ставим актуальные при реализации и фиксируем в lock-файле.
 
@@ -20,13 +20,13 @@
 
 ```
 mobile/
-  app/                      маршруты expo-router
-    (auth)/login.tsx        телефон/почта (один экран, переключатель способа)
-    (auth)/code.tsx         код из SMS / из письма (параметр channel)
-    (onboarding)/choose-home.tsx
-    (onboarding)/apartment.tsx
-    requests/new.tsx        «Новая заявка»
   src/
+    app/                    маршруты expo-router (по рекомендации Expo — в src/app)
+      (auth)/login.tsx      телефон/почта (один экран, переключатель способа)
+      (auth)/code.tsx       код из SMS / из письма (параметр channel)
+      (onboarding)/choose-home.tsx
+      (onboarding)/apartment.tsx
+      requests/new.tsx      «Новая заявка»
     theme/                  токены цвета, типографика, радиусы, отступы
     ui/                     Button, TextField, OtpInput, SegmentedTabs, Chip,
                             SelectableCard, RadioRow, ScreenHeader, FieldError, Icon
