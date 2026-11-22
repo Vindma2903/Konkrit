@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import {
   ApiError,
@@ -16,8 +16,6 @@ import ConfirmDialog from './ConfirmDialog.vue';
 import { formatDate } from './format';
 import ReviewPanel from './ReviewPanel.vue';
 import StaffHeader from './StaffHeader.vue';
-
-const POLL_MS = 30_000;
 
 const route = useRoute();
 const access = useAccessStore();
@@ -48,20 +46,13 @@ async function load(silent = false) {
   }
 }
 
-let timer: ReturnType<typeof setInterval> | undefined;
-const onVisible = () => {
-  if (document.visibilityState === 'visible') void load(true);
-};
-onMounted(() => {
-  void load();
-  timer = setInterval(() => void load(true), POLL_MS);
-  document.addEventListener('visibilitychange', onVisible);
-});
-onBeforeUnmount(() => {
-  clearInterval(timer);
-  document.removeEventListener('visibilitychange', onVisible);
-});
+onMounted(() => void load());
 watch(status, () => void load());
+// Опрос общий (каркас): после каждого опроса список обновляется тихо, без своего таймера
+watch(
+  () => access.tick,
+  () => void load(true),
+);
 
 // Что открыто: панель подтверждения или диалог отклонения для заявки
 const reviewing = ref<AccessRequest | null>(null);

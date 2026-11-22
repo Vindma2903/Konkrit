@@ -256,3 +256,39 @@ describe('каркас: меню пользователя с клавиатур�
     expect(document.activeElement).toBe(toggle.element);
   });
 });
+
+describe('единый опрос каркаса', () => {
+  it('сотрудник без staff.manage: отключение замечается по таймеру, без возврата на вкладку', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const mock = createMockStaff({ latencyMs: 0 });
+    const app = await openAs('dispatcher@uk.ru', '/', mock);
+    expect(app.router.currentRoute.value.name).toBe('cabinet');
+    mock.state().members.find((m) => m.email === 'dispatcher@uk.ru')!.status = 'disabled';
+    await vi.advanceTimersByTimeAsync(30_000);
+    await flushPromises();
+    expect(app.router.currentRoute.value.name).toBe('login');
+  });
+
+  it('снятое право исчезает из меню по таймеру', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const mock = createMockStaff({ latencyMs: 0 });
+    const app = await openAs('engineer@uk.ru', '/', mock);
+    const titles = () => app.wrapper.findAll('.shell__nav .nav-link').map((node) => node.text());
+    expect(titles().some((title) => title.includes('Аналитика'))).toBe(true);
+    mock.state().matrix.engineer = mock.state().matrix.engineer.filter((p) => p !== 'analytics.view');
+    await vi.advanceTimersByTimeAsync(30_000);
+    await flushPromises();
+    expect(titles().some((title) => title.includes('Аналитика'))).toBe(false);
+  });
+
+  it('на экране заявок нет своего таймера: за 30 секунд один опрос каркаса и одно обновление списка', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const mock = createMockStaff({ latencyMs: 0 });
+    const app = await openAs('manager@uk.ru', '/staff/access', mock);
+    await vi.waitFor(() => expect(app.wrapper.findAll('tbody tr')).toHaveLength(2));
+    const spy = vi.spyOn(mock.admin, 'listAccessRequests');
+    await vi.advanceTimersByTimeAsync(30_000);
+    await flushPromises();
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+});

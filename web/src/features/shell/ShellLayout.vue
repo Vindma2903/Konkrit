@@ -38,7 +38,9 @@ function isActive(key: string) {
   return route.params.name === key;
 }
 
-// Заявки «приходят» администратору: число ожидающих обновляется раз в 30 секунд и при возврате на вкладку
+// Единый опрос раз в 30 секунд и при возврате на вкладку:
+// - у всех обновляются роль и права (отключённый сотрудник выходит, снятое право пропадает);
+// - у руководителя обновляется число заявок на доступ, по нему же обновляются открытые списки.
 let timer: ReturnType<typeof setInterval> | undefined;
 
 function refreshAll() {
@@ -52,9 +54,8 @@ function onVisible() {
 
 function startPolling() {
   clearInterval(timer);
-  if (!canManageStaff.value) return;
-  void access.refresh();
-  timer = setInterval(() => void access.refresh(), POLL_MS);
+  if (canManageStaff.value) void access.refresh();
+  timer = setInterval(refreshAll, POLL_MS);
 }
 
 onMounted(() => {

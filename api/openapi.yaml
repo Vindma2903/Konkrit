@@ -558,6 +558,16 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ApproveAccess' }
       responses:
+        '401':
+          description: 'unauthorized: токен недействителен, нужно обновить сессию'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: 'forbidden: у роли нет права staff.manage'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '204':
           description: Доступ открыт; заявка стала сотрудником
         '409':
@@ -577,6 +587,16 @@ paths:
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
+        '401':
+          description: 'unauthorized: токен недействителен, нужно обновить сессию'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: 'forbidden: у роли нет права staff.manage'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '204':
           description: Заявка отклонена
         '409':
@@ -594,6 +614,16 @@ paths:
         - { name: houseId, in: query, required: false, schema: { type: string } }
         - { name: status, in: query, required: false, schema: { $ref: '#/components/schemas/MemberStatus' } }
       responses:
+        '401':
+          description: 'unauthorized: токен недействителен, нужно обновить сессию'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: 'forbidden: у роли нет права staff.manage'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '200':
           description: Сотрудники
           content:
@@ -613,6 +643,16 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/MemberPatch' }
       responses:
+        '401':
+          description: 'unauthorized: токен недействителен, нужно обновить сессию'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: 'forbidden: у роли нет права staff.manage'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '204':
           description: Изменено
         '404':
@@ -635,6 +675,16 @@ paths:
       tags: [staff-admin]
       summary: Матрица прав «функция × роль»
       responses:
+        '401':
+          description: 'unauthorized: токен недействителен, нужно обновить сессию'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: 'forbidden: у роли нет права staff.manage'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '200':
           description: Права каждой роли
           content:
@@ -653,6 +703,16 @@ paths:
               properties:
                 matrix: { $ref: '#/components/schemas/RolesMatrix' }
       responses:
+        '401':
+          description: 'unauthorized: токен недействителен, нужно обновить сессию'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: 'forbidden: у роли нет права staff.manage'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '204':
           description: Сохранено
         '422':
@@ -665,6 +725,16 @@ paths:
       tags: [staff-admin]
       summary: Дома и участки для выбора области работы
       responses:
+        '401':
+          description: 'unauthorized: токен недействителен, нужно обновить сессию'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: 'forbidden: у роли нет права staff.manage'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '200':
           description: Дома и участки
           content:
